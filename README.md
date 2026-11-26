@@ -16,6 +16,7 @@ src/
 ## Сборка
 ```
 cmake -S . -B build
+cmake --build build
 build/workshop_gui 
 ```
 Нужны компилятор с C++20 (GCC 11+, Clang 14+, MSVC 2022) и CMake 3.21+. Для интерфейса — Qt 6 (или Qt 5.15) Widgets.
