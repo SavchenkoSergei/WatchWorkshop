@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <memory>
 
 #include <QAction>
 #include <QButtonGroup>
@@ -46,28 +47,29 @@
 
 namespace {
 
-const int kNavOrder[6] = {3, 0, 1, 2, 4, 5};
-const char* const kPageTitles[6] = {"Клиенты", "Часы", "Мастера", "Заказы", "Детали на складе", "Журнал действий"};
-const char* const kNavTitles[6] = {"Клиенты", "Часы", "Мастера", "Заказы", "Детали", "Журнал"};
-const char* const kAddTitles[6] = {"+ Клиент", "+ Часы", "+ Мастер", "+ Заказ", "+ Деталь", ""};
-const int kMaxColumnWidth = 340;    
+    const int kNavOrder[6] = { 3, 0, 1, 2, 4, 5 };
+    const char* const kPageTitles[6] = { "Клиенты", "Часы", "Мастера", "Заказы", "Детали на складе", "Журнал действий" };
+    const char* const kNavTitles[6] = { "Клиенты", "Часы", "Мастера", "Заказы", "Детали", "Журнал" };
+    const char* const kAddTitles[6] = { "+ Клиент", "+ Часы", "+ Мастер", "+ Заказ", "+ Деталь", "" };
+    const int kMaxColumnWidth = 340;
 }
 
 template <typename F>
 void MainWindow::guarded(F&& action) {
     try {
         action();
-    } catch (const WorkshopException& e) {
+    }
+    catch (const WorkshopException& e) {
         showError(e);
     }
 }
 
 MainWindow::MainWindow(Workshop* workshop, Role role, int accountId, const QString& userName,
-                       int masterId, QWidget* parent)
+    int masterId, QWidget* parent)
     : QMainWindow(parent), workshop(workshop), role(role), accountId(accountId), userName(userName),
-      masterId(masterId) {
+    masterId(masterId) {
     setWindowTitle("Часовая мастерская — " + userName + " (" +
-                   QString::fromStdString(roleToString(role)) + ")");
+        QString::fromStdString(roleToString(role)) + ")");
     resize(1250, 700);
     darkTheme = QSettings("WatchWorkshop", "WatchWorkshop").value("darkTheme", false).toBool();
 
@@ -88,7 +90,6 @@ MainWindow::MainWindow(Workshop* workshop, Role role, int accountId, const QStri
         statusBar()->showMessage("Данные сохраняются в папку: " + QDir::toNativeSeparators(path));
     }
 
-   
     lastDate = QString::fromStdString(dates::today());
     timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, [this] {
@@ -97,34 +98,31 @@ MainWindow::MainWindow(Workshop* workshop, Role role, int accountId, const QStri
             lastDate = today;
             refreshTab(OrdersTab);
         }
-    });
+        });
     timer->start(60 * 1000);
 }
 
-
-
 void MainWindow::buildUi() {
-    auto* central = new QWidget(this);
-    auto* root = new QHBoxLayout(central);
+    auto central = std::make_unique<QWidget>(this);
+    auto root = std::make_unique<QHBoxLayout>();
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
 
-
-    auto* sidebar = new QFrame(central);
+    auto sidebar = std::make_unique<QFrame>(central.get());
     sidebar->setObjectName("sidebar");
     sidebar->setFixedWidth(210);
-    auto* sideLayout = new QVBoxLayout(sidebar);
+    auto sideLayout = std::make_unique<QVBoxLayout>();
     sideLayout->setContentsMargins(0, 0, 0, 0);
     sideLayout->setSpacing(0);
-    auto* appTitle = new QLabel("Часовая\nмастерская", sidebar);
+    auto appTitle = std::make_unique<QLabel>("Часовая\nмастерская", sidebar.get());
     appTitle->setObjectName("appTitle");
-    sideLayout->addWidget(appTitle);
+    sideLayout->addWidget(appTitle.release());
 
-    auto* group = new QButtonGroup(this);
+    auto group = std::make_unique<QButtonGroup>(this);
     group->setExclusive(true);
     for (int i = 0; i < 6; ++i) {
         Tab tab = static_cast<Tab>(kNavOrder[i]);
-        auto* button = new QPushButton(kNavTitles[tab], sidebar);
+        auto* button = new QPushButton(kNavTitles[tab], sidebar.get());
         button->setObjectName("nav");
         button->setCheckable(true);
         button->setCursor(Qt::PointingHandCursor);
@@ -134,47 +132,51 @@ void MainWindow::buildUi() {
         navButtons[tab] = button;
         connect(button, &QPushButton::clicked, this, [this, tab] { setPage(tab); });
     }
+    group.release();
     sideLayout->addStretch();
-    auto* userLabel = new QLabel(userName + "\n" + QString::fromStdString(roleToString(role)), sidebar);
+    auto userLabel = std::make_unique<QLabel>(
+        userName + "\n" + QString::fromStdString(roleToString(role)), sidebar.get());
     userLabel->setObjectName("userLabel");
-    sideLayout->addWidget(userLabel);
+    sideLayout->addWidget(userLabel.release());
+    sidebar->setLayout(sideLayout.release());
 
-    auto* content = new QWidget(central);
-    auto* contentLayout = new QVBoxLayout(content);
+    auto content = std::make_unique<QWidget>(central.get());
+    auto contentLayout = std::make_unique<QVBoxLayout>();
     contentLayout->setContentsMargins(22, 18, 22, 14);
     contentLayout->setSpacing(12);
 
-    auto* header = new QHBoxLayout;
-    titleLabel = new QLabel(content);
+    auto header = std::make_unique<QHBoxLayout>();
+    titleLabel = new QLabel(content.get());
     titleLabel->setObjectName("pageTitle");
     header->addWidget(titleLabel);
     header->addStretch();
-    searchEdit = new QLineEdit(content);
+    searchEdit = new QLineEdit(content.get());
     searchEdit->setPlaceholderText("Поиск (Ctrl+F)");
     searchEdit->setClearButtonEnabled(true);
     searchEdit->setFixedWidth(260);
     header->addWidget(searchEdit);
-    takeButton = new QPushButton("Взять заказ", content);
+    takeButton = new QPushButton("Взять заказ", content.get());
     takeButton->setObjectName("takeButton");
     takeButton->setCursor(Qt::PointingHandCursor);
     header->addWidget(takeButton);
-    addButton = new QPushButton(content);
+    addButton = new QPushButton(content.get());
     addButton->setObjectName("addButton");
     addButton->setCursor(Qt::PointingHandCursor);
     header->addWidget(addButton);
-    contentLayout->addLayout(header);
+    contentLayout->addLayout(header.release());
 
-    cardsBar = new QWidget(content);
-    auto* cardsLayout = new QHBoxLayout(cardsBar);
+    cardsBar = new QWidget(content.get());
+    auto cardsLayout = std::make_unique<QHBoxLayout>();
     cardsLayout->setContentsMargins(0, 0, 0, 0);
     cardsLayout->setSpacing(12);
     cardsLayout->addWidget(makeCard("dark", "Всего заказов", cardValues[0]), 1);
     cardsLayout->addWidget(makeCard("green", "В работе", cardValues[1]), 1);
     cardsLayout->addWidget(makeCard("red", "Просрочено", cardValues[2]), 1);
     cardsLayout->addWidget(makeCard("orange", "Готовы к выдаче", cardValues[3]), 1);
+    cardsBar->setLayout(cardsLayout.release());
     contentLayout->addWidget(cardsBar);
 
-    pages = new QStackedWidget(content);
+    pages = new QStackedWidget(content.get());
     contentLayout->addWidget(pages, 1);
     tables[ClientsTab] = addTable(clientModel, ClientsTab);
     tables[WatchesTab] = addTable(watchModel, WatchesTab);
@@ -182,14 +184,16 @@ void MainWindow::buildUi() {
     tables[OrdersTab] = addTable(orderModel, OrdersTab);
     tables[PartsTab] = addTable(partModel, PartsTab);
     tables[LogTab] = addTable(logModel, LogTab);
-    proxies[LogTab]->toggleColumn(0);                
+    proxies[LogTab]->toggleColumn(0);
+    content->setLayout(contentLayout.release());
 
-    root->addWidget(sidebar);
-    root->addWidget(content, 1);
-    setCentralWidget(central);
+    root->addWidget(sidebar.release());
+    root->addWidget(content.release(), 1);
+    central->setLayout(root.release());
+    setCentralWidget(central.release());
 
     connect(searchEdit, &QLineEdit::textChanged, this,
-            [this](const QString& text) { proxies[currentTab()]->setFilterFixedString(text); });
+        [this](const QString& text) { proxies[currentTab()]->setFilterFixedString(text); });
     connect(addButton, &QPushButton::clicked, this, &MainWindow::onAddCurrent);
     connect(takeButton, &QPushButton::clicked, this, &MainWindow::onTakeOrder);
 
@@ -199,27 +203,28 @@ void MainWindow::buildUi() {
 }
 
 QWidget* MainWindow::makeCard(const QString& tone, const QString& caption, QLabel*& valueLabel) {
-    auto* card = new QFrame;
+    auto card = std::make_unique<QFrame>();
     card->setObjectName("card");
     card->setProperty("tone", tone);
-    auto* layout = new QVBoxLayout(card);
+    auto layout = std::make_unique<QVBoxLayout>();
     layout->setContentsMargins(16, 10, 16, 10);
     layout->setSpacing(0);
-    valueLabel = new QLabel("0", card);
+    valueLabel = new QLabel("0", card.get());
     valueLabel->setObjectName("cardValue");
-    auto* captionLabel = new QLabel(caption, card);
+    auto captionLabel = std::make_unique<QLabel>(caption, card.get());
     captionLabel->setObjectName("cardCaption");
     layout->addWidget(valueLabel);
-    layout->addWidget(captionLabel);
-    return card;
+    layout->addWidget(captionLabel.release());
+    card->setLayout(layout.release());
+    return card.release();
 }
 
 QTableView* MainWindow::addTable(QAbstractItemModel* model, Tab tab) {
-    auto* proxy = new SortProxy(this);         
+    auto* proxy = new SortProxy(this);
     proxy->setSource(model);
     proxies[tab] = proxy;
 
-    auto* view = new QTableView(pages);
+    auto view = std::make_unique<QTableView>(pages);
     view->setModel(proxy);
     view->setSelectionBehavior(QAbstractItemView::SelectRows);
     view->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -231,25 +236,28 @@ QTableView* MainWindow::addTable(QAbstractItemModel* model, Tab tab) {
     view->verticalHeader()->setDefaultSectionSize(40);
 
     QHeaderView* header = view->horizontalHeader();
-    header->setSectionResizeMode(QHeaderView::Interactive);    
+    header->setSectionResizeMode(QHeaderView::Interactive);
     header->setMinimumSectionSize(60);
     header->setStretchLastSection(true);
     header->setSectionsClickable(true);
     connect(header, &QHeaderView::sectionClicked, this,
-            [this, tab](int column) { proxies[tab]->toggleColumn(column); });
+        [this, tab](int column) { proxies[tab]->toggleColumn(column); });
     connect(header, &QHeaderView::sectionResized, this, [this, tab] {
-        if (!autoResizing) userSized[tab] = true;              
-    });
+        if (!autoResizing) userSized[tab] = true;
+        });
 
-    view->setContextMenuPolicy(Qt::CustomContextMenu);        
-    connect(view, &QWidget::customContextMenuRequested, this,
-            [this, tab](const QPoint& pos) { showContextMenu(tab, pos); });
-    connect(view, &QTableView::doubleClicked, this, [this, tab](const QModelIndex&) {
+    view->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(view.get(), &QWidget::customContextMenuRequested, this,
+        [this, tab](const QPoint& pos) { showContextMenu(tab, pos); });
+    connect(view.get(), &QTableView::doubleClicked, this, [this, tab](const QModelIndex&) {
         if (tab == OrdersTab || tab == WatchesTab) showDetails(tab);
-    });
-    if (tab == OrdersTab) view->setItemDelegateForColumn(5, new StatusDelegate(view));
-    pages->addWidget(view);             
-    return view;
+        });
+    if (tab == OrdersTab) {
+        auto delegate = std::make_unique<StatusDelegate>(view.get());
+        view->setItemDelegateForColumn(5, delegate.release());
+    }
+    pages->addWidget(view.get());
+    return view.release();
 }
 
 void MainWindow::fitColumns(Tab tab) {
@@ -275,18 +283,16 @@ void MainWindow::updateAddButton() {
     Tab tab = currentTab();
     addButton->setText(kAddTitles[tab]);
     addButton->setVisible(allowed(addPermission(tab)));
-    takeButton->setVisible(tab == OrdersTab && role == Role::Master);   
+    takeButton->setVisible(tab == OrdersTab && role == Role::Master);
 }
 
-
 int MainWindow::addPermission(Tab tab) const {
-    if (tab == LogTab) return 0;                       
+    if (tab == LogTab) return 0;
     return tab == MastersTab ? AdminOnly : FrontDesk;
 }
 
-
 bool MainWindow::pageVisible(Tab tab) const {
-    if (tab == LogTab) return role == Role::Admin;     
+    if (tab == LogTab) return role == Role::Admin;
     if (role == Role::Reception || role == Role::Admin) return true;
     return tab == OrdersTab || tab == WatchesTab || tab == PartsTab;
 }
@@ -311,10 +317,10 @@ MainWindow::Tab MainWindow::currentTab() const { return static_cast<Tab>(pages->
 bool MainWindow::allowed(int who) const {
     int bit = 0;
     switch (role) {
-        case Role::Guest:     bit = ForGuest; break;
-        case Role::Master:    bit = ForMaster; break;
-        case Role::Reception: bit = ForReception; break;
-        case Role::Admin:     bit = ForAdmin; break;
+    case Role::Guest:     bit = ForGuest; break;
+    case Role::Master:    bit = ForMaster; break;
+    case Role::Reception: bit = ForReception; break;
+    case Role::Admin:     bit = ForAdmin; break;
     }
     return (who & bit) != 0;
 }
@@ -327,13 +333,14 @@ bool MainWindow::ownsOrder(int orderId) const {
 
 QMenu* MainWindow::newMenu(const QString& title) { return new QMenu(title, this); }
 
-void MainWindow::attach(QMenu* menu) {
-    if (menu->isEmpty()) delete menu;           
-    else menuBar()->addMenu(menu);
+void MainWindow::attach(QMenu* rawMenu) {
+    std::unique_ptr<QMenu> menu(rawMenu);
+    if (!menu || menu->isEmpty()) return;
+    menuBar()->addMenu(menu.release());
 }
 
-void MainWindow::addMenuAction(QMenu* menu, const QString& title, void (MainWindow::*slot)(), int who,
-                               const QKeySequence& shortcut) {
+void MainWindow::addMenuAction(QMenu* menu, const QString& title, void (MainWindow::* slot)(), int who,
+    const QKeySequence& shortcut) {
     if (!allowed(who)) return;
     QAction* action = menu->addAction(title);
     if (!shortcut.isEmpty()) action->setShortcut(shortcut);
@@ -344,19 +351,19 @@ void MainWindow::createMenus() {
     QMenu* file = newMenu("Файл");
     if (allowed(Staff)) {
         QAction* save = file->addAction("Сохранить");
-        save->setShortcut(QKeySequence::Save);                    
+        save->setShortcut(QKeySequence::Save);
         connect(save, &QAction::triggered, this, [this] {
             guarded([this] {
                 workshop->saveAll();
                 statusBar()->showMessage("Данные сохранены", 3000);
+                });
             });
-        });
     }
     addMenuAction(file, "Открыть папку с данными", &MainWindow::onOpenDataFolder, Staff);
     addMenuAction(file, "Сменить пароль…", &MainWindow::onChangePassword, Staff);
     file->addSeparator();
     addMenuAction(file, "Сменить тему (светлая / тёмная)", &MainWindow::onToggleTheme, Everyone,
-                  QKeySequence("Ctrl+D"));
+        QKeySequence("Ctrl+D"));
     addMenuAction(file, "Сменить пользователя", &MainWindow::onSwitchUser, Everyone, QKeySequence("Ctrl+L"));
     QAction* quit = file->addAction("Выход");
     quit->setShortcut(QKeySequence("Ctrl+Q"));
@@ -371,33 +378,33 @@ void MainWindow::createMenus() {
 
 void MainWindow::createShortcuts() {
     auto bind = [this](const QKeySequence& keys, std::function<void()> action) {
-        auto* a = new QAction(this);
+        auto a = std::make_unique<QAction>(this);
         a->setShortcut(keys);
-        connect(a, &QAction::triggered, this, [action] { action(); });
-        QWidget::addAction(a);
-    };
-    bind(QKeySequence::New, [this] { onAddCurrent(); });                     
+        connect(a.get(), &QAction::triggered, this, [action] { action(); });
+        QWidget::addAction(a.release());
+        };
+    bind(QKeySequence::New, [this] { onAddCurrent(); });
     bind(QKeySequence(Qt::Key_F2), [this] { onEdit(); });
     bind(QKeySequence::Delete, [this] { onDelete(); });
     bind(QKeySequence("Ctrl+T"), [this] { if (currentTab() == OrdersTab) onChangeStatus(); });
-    bind(QKeySequence::Find, [this] {                                          
+    bind(QKeySequence::Find, [this] {
         searchEdit->setFocus();
         searchEdit->selectAll();
-    });
+        });
     bind(QKeySequence(Qt::Key_F5), [this] { refreshAll(); });
-    for (int i = 0; i < 6; ++i) {                                              
+    for (int i = 0; i < 6; ++i) {
         Tab tab = static_cast<Tab>(kNavOrder[i]);
         bind(QKeySequence(QString("Ctrl+%1").arg(i + 1)), [this, tab] {
             if (!navButtons[tab]->isVisible()) return;
             navButtons[tab]->setChecked(true);
             setPage(tab);
-        });
+            });
     }
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {
     if (role != Role::Guest)
-        guarded([this] { workshop->saveAll(); });     
+        guarded([this] { workshop->saveAll(); });
     event->accept();
 }
 
@@ -407,12 +414,12 @@ void MainWindow::showError(const WorkshopException& e) {
 
 void MainWindow::refreshTab(Tab tab) {
     switch (tab) {
-        case ClientsTab: clientModel->refresh(); break;
-        case WatchesTab: watchModel->refresh(); break;
-        case MastersTab: masterModel->refresh(); break;
-        case OrdersTab:  orderModel->refresh(); updateSummary(); break;
-        case PartsTab:   partModel->refresh(); break;
-        case LogTab:     logModel->refresh(); break;
+    case ClientsTab: clientModel->refresh(); break;
+    case WatchesTab: watchModel->refresh(); break;
+    case MastersTab: masterModel->refresh(); break;
+    case OrdersTab:  orderModel->refresh(); updateSummary(); break;
+    case PartsTab:   partModel->refresh(); break;
+    case LogTab:     logModel->refresh(); break;
     }
     fitColumns(tab);
 }
@@ -441,18 +448,18 @@ bool MainWindow::pick(const QString& title, const Choices& choices, int& id) {
 Choices MainWindow::clientChoices() const {
     Choices r;
     for (const Client& c : workshop->clients)
-        r.push_back({c.getId(), QString::fromStdString(c.getLastName() + " " + c.getFirstName()), 0, "", ""});
+        r.push_back({ c.getId(), QString::fromStdString(c.getLastName() + " " + c.getFirstName()), 0, "", "" });
     return r;
 }
 
 Choices MainWindow::watchChoices(bool freeOnly) const {
     Choices r;
     for (const Watch& w : workshop->watches) {
-        if (freeOnly && workshop->activeOrderId(w.getId()) != 0) continue;   // на часы уже оформлен заказ
-        r.push_back({w.getId(),
+        if (freeOnly && workshop->activeOrderId(w.getId()) != 0) continue;
+        r.push_back({ w.getId(),
                      QString::fromStdString(w.getBrand() + " " + w.getModel() + " (" + w.getSerialNumber() + ")"),
                      w.getClientId(), QString::fromStdString(w.getMechanismType()),
-                     QString::fromStdString(w.getBrand())});
+                     QString::fromStdString(w.getBrand()) });
     }
     return r;
 }
@@ -460,28 +467,28 @@ Choices MainWindow::watchChoices(bool freeOnly) const {
 Choices MainWindow::masterChoices() const {
     Choices r;
     for (const Master& m : workshop->masters)
-        r.push_back({m.getId(), QString::fromStdString(m.getLastName() + " " + m.getFirstName()), 0, "", ""});
+        r.push_back({ m.getId(), QString::fromStdString(m.getLastName() + " " + m.getFirstName()), 0, "", "" });
     return r;
 }
 
 Choices MainWindow::partChoices() const {
     Choices r;
     for (const Part& p : workshop->parts)
-        r.push_back({p.getId(),
+        r.push_back({ p.getId(),
                      QString::fromStdString(p.getName()) + " (остаток " + QString::number(p.getQuantity()) + ")",
-                     0, "", ""});
+                     0, "", "" });
     return r;
 }
 
 Choices MainWindow::orderChoices(bool ownOnly) const {
     Choices r;
     for (const Order& o : workshop->orders) {
-        if (o.getStatus() >= OrderStatus::Ready) continue;        // готовые и выданные заказы не меняются
+        if (o.getStatus() >= OrderStatus::Ready) continue;
         if (ownOnly && (!o.getMaster() || o.getMaster()->getId() != masterId)) continue;
         QString watch = o.getWatch() ? QString::fromStdString(o.getWatch()->getBrand() + " " + o.getWatch()->getModel())
-                                     : QString("—");
+            : QString("—");
         QString client = o.getClient() ? QString::fromStdString(o.getClient()->getLastName()) : QString("—");
-        r.push_back({o.getId(), "№" + QString::number(o.getId()) + ": " + watch + ", " + client, 0, "", ""});
+        r.push_back({ o.getId(), "№" + QString::number(o.getId()) + ": " + watch + ", " + client, 0, "", "" });
     }
     return r;
 }
@@ -489,25 +496,23 @@ Choices MainWindow::orderChoices(bool ownOnly) const {
 Choices MainWindow::accountChoices() const {
     Choices r;
     for (const Account& a : workshop->accounts)
-        r.push_back({a.getId(),
+        r.push_back({ a.getId(),
                      QString::fromStdString(a.getLogin()) + " (" + QString::fromStdString(roleToString(a.getRole())) + ")",
-                     0, "", ""});
+                     0, "", "" });
     return r;
 }
-
-
 
 QString MainWindow::watchDetails(int watchId) const {
     const Watch& w = workshop->watches.findById(watchId);
     QString html = "<h3>Часы: " + QString::fromStdString(w.getBrand() + " " + w.getModel()).toHtmlEscaped() + "</h3><p>";
-    if (role != Role::Guest && w.getClient())                   
+    if (role != Role::Guest && w.getClient())
         html += "<b>Владелец:</b> " +
-                QString::fromStdString(w.getClient()->getLastName() + " " + w.getClient()->getFirstName()).toHtmlEscaped() +
-                "<br>";
+        QString::fromStdString(w.getClient()->getLastName() + " " + w.getClient()->getFirstName()).toHtmlEscaped() +
+        "<br>";
     html += "<b>Серийный номер:</b> " + QString::fromStdString(w.getSerialNumber()).toHtmlEscaped() +
-            "<br><b>Тип механизма:</b> " + QString::fromStdString(w.getMechanismType()).toHtmlEscaped() +
-            "</p><p><b>Неисправность:</b><br>" +
-            QString::fromStdString(w.getDefectDescription()).toHtmlEscaped().replace("\n", "<br>") + "</p>";
+        "<br><b>Тип механизма:</b> " + QString::fromStdString(w.getMechanismType()).toHtmlEscaped() +
+        "</p><p><b>Неисправность:</b><br>" +
+        QString::fromStdString(w.getDefectDescription()).toHtmlEscaped().replace("\n", "<br>") + "</p>";
     return html;
 }
 
@@ -519,12 +524,12 @@ QString MainWindow::orderDetails(int orderId) const {
         html += "<b>Клиент:</b> " + esc(o.getClient()->getLastName() + " " + o.getClient()->getFirstName()) + "<br>";
     if (o.getWatch())
         html += "<b>Часы:</b> " + esc(o.getWatch()->getBrand() + " " + o.getWatch()->getModel() + " (" +
-                                       o.getWatch()->getSerialNumber() + ", " + o.getWatch()->getMechanismType() + ")") +
-                "<br>";
+            o.getWatch()->getSerialNumber() + ", " + o.getWatch()->getMechanismType() + ")") +
+        "<br>";
     html += "<b>Статус:</b> " + esc(statusToString(o.getStatus())) + "<br><b>Мастер:</b> " +
-            (o.getMaster() ? esc(o.getMaster()->getLastName() + " " + o.getMaster()->getFirstName()) : QString("не назначен")) +
-            "<br><b>Принят:</b> " + esc(o.getAcceptDate()) + "<br><b>Плановая дата:</b> " + esc(o.plannedDate()) +
-            "<br><b>Выдан:</b> " + (o.getIssueDate().empty() ? QString("—") : esc(o.getIssueDate())) + "</p>";
+        (o.getMaster() ? esc(o.getMaster()->getLastName() + " " + o.getMaster()->getFirstName()) : QString("не назначен")) +
+        "<br><b>Принят:</b> " + esc(o.getAcceptDate()) + "<br><b>Плановая дата:</b> " + esc(o.plannedDate()) +
+        "<br><b>Выдан:</b> " + (o.getIssueDate().empty() ? QString("—") : esc(o.getIssueDate())) + "</p>";
     if (o.getWatch())
         html += "<p><b>Неисправность:</b><br>" + esc(o.getWatch()->getDefectDescription()).replace("\n", "<br>") + "</p>";
     html += "<p><b>Услуги:</b></p><ul>";
@@ -548,7 +553,7 @@ void MainWindow::showDetails(Tab tab) {
         QString title = tab == OrdersTab ? "Заказ №" + QString::number(id) : QString("Часы");
         DetailsDialog dlg(title, tab == OrdersTab ? orderDetails(id) : watchDetails(id), this);
         dlg.exec();
-    });
+        });
 }
 
 void MainWindow::addWatchFor(int clientId) {
@@ -557,7 +562,7 @@ void MainWindow::addWatchFor(int clientId) {
         if (dlg.exec() != QDialog::Accepted) return;
         workshop->acceptWatch(dlg.getWatch());
         refreshTab(WatchesTab);
-    });
+        });
 }
 
 void MainWindow::createOrderFor(int clientId, int watchId) {
@@ -572,224 +577,223 @@ void MainWindow::createOrderFor(int clientId, int watchId) {
         if (dlg.exec() != QDialog::Accepted) return;
         workshop->createOrder(dlg.getClientId(), dlg.getWatchId(), dlg.getMasterId(), dlg.getService());
         refreshTab(OrdersTab);
-    });
+        });
 }
 
 void MainWindow::applyStatus(int orderId, OrderStatus status) {
     guarded([&] {
         workshop->changeStatus(orderId, status);
         refreshTab(OrdersTab);
-    });
+        });
 }
 
 void MainWindow::applyMaster(int orderId, int newMasterId) {
     guarded([&] {
         workshop->assignMaster(orderId, newMasterId);
         refreshTab(OrdersTab);
-    });
+        });
 }
 
 void MainWindow::applyUsedPart(int orderId, int partId) {
     guarded([&] {
-        workshop->addUsedPart(orderId, partId);    
+        workshop->addUsedPart(orderId, partId);
         refreshTab(OrdersTab);
         refreshTab(PartsTab);
-    });
+        });
 }
-
 
 void MainWindow::showContextMenu(Tab tab, const QPoint& pos) {
     if (role == Role::Guest) return;
     QTableView* view = tables[tab];
     QModelIndex idx = view->indexAt(pos);
     bool hasRow = idx.isValid();
-    if (hasRow) {                                   
+    if (hasRow) {
         view->selectRow(idx.row());
         view->setCurrentIndex(idx);
     }
     int id = hasRow ? idx.sibling(idx.row(), 0).data().toInt() : 0;
     int column = hasRow ? idx.column() : -1;
 
-    QMenu menu(this);
+    auto menu = std::make_unique<QMenu>(this);
     auto add = [&](const QString& title, int who, std::function<void()> action) {
         if (!allowed(who)) return;
-        QAction* a = menu.addAction(title);
+        QAction* a = menu->addAction(title);
         connect(a, &QAction::triggered, this, [action] { action(); });
-    };
+        };
     auto separator = [&] {
-        if (!menu.isEmpty() && !menu.actions().last()->isSeparator()) menu.addSeparator();
-    };
+        if (!menu->isEmpty() && !menu->actions().last()->isSeparator()) menu->addSeparator();
+        };
 
     switch (tab) {
-        case ClientsTab:
-            add("Добавить клиента", FrontDesk, [this] { onAddClient(); });
-            if (hasRow) {
-                add("Принять часы этого клиента…", FrontDesk, [this, id] { addWatchFor(id); });
-                add("Редактировать", FrontDesk, [this] { onEdit(); });
-                separator();
-                add("Удалить", AdminOnly, [this] { onDelete(); });
-            }
-            break;
-
-        case WatchesTab:
-            add("Принять часы", FrontDesk, [this] { onAddWatch(); });
-            if (hasRow) {
-                int owner = workshop->watches.findById(id).getClientId();
-                add("Подробнее (неисправность)", Staff, [this] { showDetails(WatchesTab); });
-                add("Создать заказ на эти часы…", FrontDesk, [this, owner, id] { createOrderFor(owner, id); });
-                add("Редактировать", FrontDesk, [this] { onEdit(); });
-                separator();
-                add("Удалить", AdminOnly, [this] { onDelete(); });
-            }
-            break;
-
-        case MastersTab:
-            add("Добавить мастера", AdminOnly, [this] { onAddMaster(); });
-            if (hasRow) {
-                if (allowed(FrontDesk)) {          
-                    QMenu* sub = menu.addMenu("Назначить на заказ");
-                    Choices orders = orderChoices();
-                    if (orders.isEmpty()) sub->addAction("Свободных заказов нет")->setEnabled(false);
-                    for (const Choice& o : orders) {
-                        QAction* action = sub->addAction(o.title);
-                        int orderId = o.id;
-                        connect(action, &QAction::triggered, this,
-                                [this, orderId, id] { applyMaster(orderId, id); });
-                    }
-                }
-                add("Редактировать", AdminOnly, [this] { onEdit(); });
-                separator();
-                add("Удалить", AdminOnly, [this] { onDelete(); });
-            }
-            break;
-
-        case PartsTab:
-            add("Добавить деталь", FrontDesk, [this] { onAddPart(); });
-            if (hasRow) {
-                add("Принять партию (пополнить остаток)…", FrontDesk, [this] { onRestockPart(); });
-                add("Списать…", WorkshopStaff, [this] { onWriteOffPart(); });
-                if (allowed(WorkshopStaff)) {       
-                    QMenu* sub = menu.addMenu("Добавить в заказ");
-                    Choices orders = orderChoices(role == Role::Master);
-                    if (orders.isEmpty()) sub->addAction("Свободных заказов нет")->setEnabled(false);
-                    for (const Choice& o : orders) {
-                        QAction* action = sub->addAction(o.title);
-                        int orderId = o.id;
-                        connect(action, &QAction::triggered, this,
-                                [this, orderId, id] { applyUsedPart(orderId, id); });
-                    }
-                }
-                separator();
-                add("Редактировать", AdminOnly, [this] { onEdit(); });
-                add("Удалить", AdminOnly, [this] { onDelete(); });
-            }
-            break;
-
-        case LogTab:
-            break;                                  
-
-        case OrdersTab: {
-            const Order* order = hasRow ? &workshop->orders.findById(id) : nullptr;
-            bool finished = order && order->getStatus() >= OrderStatus::Ready;
-            bool issued = order && order->getStatus() == OrderStatus::Issued;
-            bool owns = hasRow && ownsOrder(id);
-            bool statusDone = false, masterDone = false, serviceDone = false, partDone = false;
-
-            auto statusMenu = [&] {
-                if (statusDone || !hasRow || !allowed(Staff)) return;
-                OrderStatus current = order->getStatus();
-              
-                QList<OrderStatus> options;
-                for (int s = 0; s <= static_cast<int>(OrderStatus::Issued); ++s) {
-                    OrderStatus status = static_cast<OrderStatus>(s);
-                    if (status != current && Workshop::isStatusAllowed(role, current, status) &&
-                        (role != Role::Master || owns))
-                        options.push_back(status);
-                }
-                if (options.isEmpty()) return;
-                statusDone = true;
-                QMenu* sub = menu.addMenu("Сменить статус");
-                QAction* now = sub->addAction("Сейчас: " + QString::fromStdString(statusToString(current)));
-                now->setEnabled(false);
-                sub->addSeparator();
-                for (OrderStatus status : options) {
-                    QAction* action = sub->addAction(QString::fromStdString(statusToString(status)));
-                    connect(action, &QAction::triggered, this,
-                            [this, id, status] { applyStatus(id, status); });
-                }
-            };
-            auto masterMenu = [&] {
-                if (masterDone || !hasRow || !allowed(FrontDesk)) return;
-                masterDone = true;
-                QMenu* sub = menu.addMenu("Назначить мастера");
-                const Master* current = order->getMaster();
-                Choices masters = masterChoices();
-                if (masters.isEmpty()) sub->addAction("Мастеров нет")->setEnabled(false);
-                for (const Choice& m : masters) {
-                    QAction* action = sub->addAction(m.title);
-                    action->setCheckable(true);
-                    action->setChecked(current && current->getId() == m.id);
-                    int newMasterId = m.id;
-                    connect(action, &QAction::triggered, this,
-                            [this, id, newMasterId] { applyMaster(id, newMasterId); });
-                }
-            };
-            auto serviceMenu = [&] {
-                if (serviceDone || !hasRow) return;
-                serviceDone = true;
-                if (role != Role::Master || owns)            
-                    add("Добавить услугу…", Staff, [this] { onAddService(); });
-                add("Удалить услугу…", FrontDesk, [this] { onRemoveService(); });
-            };
-            auto partMenu = [&] {
-                if (partDone || !hasRow || !allowed(WorkshopStaff)) return;
-                if (role == Role::Master && !owns) return;      
-                partDone = true;
-                QMenu* sub = menu.addMenu("Добавить деталь в заказ");
-                Choices parts = partChoices();
-                if (parts.isEmpty()) sub->addAction("Деталей нет")->setEnabled(false);
-                for (const Choice& p : parts) {
-                    QAction* action = sub->addAction(p.title);
-                    int partId = p.id;
-                    connect(action, &QAction::triggered, this,
-                            [this, id, partId] { applyUsedPart(id, partId); });
-                }
-                add("Убрать деталь из заказа…", WorkshopStaff, [this] { onRemoveUsedPart(); });
-            };
-
-            if (hasRow) {
-                add("Подробнее (неисправность, услуги)", Staff, [this] { showDetails(OrdersTab); });
-                separator();
-                if (!finished) {
-                    if (role == Role::Master && !order->getMaster()) {
-                        QAction* take = menu.addAction(order->isComplex()
-                            ? "Взять заказ (сложный: назначает ресепшен)" : "Взять заказ");
-                        take->setEnabled(!order->isComplex());
-                        connect(take, &QAction::triggered, this, [this] { onTakeOrder(); });
-                        separator();
-                    }
-                    if (column == 5) statusMenu();
-                    else if (column == 3) masterMenu();
-                    else if (column == 4) serviceMenu();
-                    separator();
-                    statusMenu();
-                    masterMenu();
-                    serviceMenu();
-                    partMenu();
-                } else if (!issued || role == Role::Admin) {
-                    statusMenu();                  
-                }
-                separator();
-            }
-            add("Создать заказ…", FrontDesk, [this] { onCreateOrder(); });
-            if (hasRow && !finished) add("Удалить заказ", AdminOnly, [this] { onDelete(); });
-            break;
+    case ClientsTab:
+        add("Добавить клиента", FrontDesk, [this] { onAddClient(); });
+        if (hasRow) {
+            add("Принять часы этого клиента…", FrontDesk, [this, id] { addWatchFor(id); });
+            add("Редактировать", FrontDesk, [this] { onEdit(); });
+            separator();
+            add("Удалить", AdminOnly, [this] { onDelete(); });
         }
-    }
-    if (menu.isEmpty()) return;
-    menu.exec(view->viewport()->mapToGlobal(pos));
-}
+        break;
 
+    case WatchesTab:
+        add("Принять часы", FrontDesk, [this] { onAddWatch(); });
+        if (hasRow) {
+            int owner = workshop->watches.findById(id).getClientId();
+            add("Подробнее (неисправность)", Staff, [this] { showDetails(WatchesTab); });
+            add("Создать заказ на эти часы…", FrontDesk, [this, owner, id] { createOrderFor(owner, id); });
+            add("Редактировать", FrontDesk, [this] { onEdit(); });
+            separator();
+            add("Удалить", AdminOnly, [this] { onDelete(); });
+        }
+        break;
+
+    case MastersTab:
+        add("Добавить мастера", AdminOnly, [this] { onAddMaster(); });
+        if (hasRow) {
+            if (allowed(FrontDesk)) {
+                QMenu* sub = menu->addMenu("Назначить на заказ");
+                Choices orders = orderChoices();
+                if (orders.isEmpty()) sub->addAction("Свободных заказов нет")->setEnabled(false);
+                for (const Choice& o : orders) {
+                    QAction* action = sub->addAction(o.title);
+                    int orderId = o.id;
+                    connect(action, &QAction::triggered, this,
+                        [this, orderId, id] { applyMaster(orderId, id); });
+                }
+            }
+            add("Редактировать", AdminOnly, [this] { onEdit(); });
+            separator();
+            add("Удалить", AdminOnly, [this] { onDelete(); });
+        }
+        break;
+
+    case PartsTab:
+        add("Добавить деталь", FrontDesk, [this] { onAddPart(); });
+        if (hasRow) {
+            add("Принять партию (пополнить остаток)…", FrontDesk, [this] { onRestockPart(); });
+            add("Списать…", WorkshopStaff, [this] { onWriteOffPart(); });
+            if (allowed(WorkshopStaff)) {
+                QMenu* sub = menu->addMenu("Добавить в заказ");
+                Choices orders = orderChoices(role == Role::Master);
+                if (orders.isEmpty()) sub->addAction("Свободных заказов нет")->setEnabled(false);
+                for (const Choice& o : orders) {
+                    QAction* action = sub->addAction(o.title);
+                    int orderId = o.id;
+                    connect(action, &QAction::triggered, this,
+                        [this, orderId, id] { applyUsedPart(orderId, id); });
+                }
+            }
+            separator();
+            add("Редактировать", AdminOnly, [this] { onEdit(); });
+            add("Удалить", AdminOnly, [this] { onDelete(); });
+        }
+        break;
+
+    case LogTab:
+        break;
+
+    case OrdersTab: {
+        const Order* order = hasRow ? &workshop->orders.findById(id) : nullptr;
+        bool finished = order && order->getStatus() >= OrderStatus::Ready;
+        bool issued = order && order->getStatus() == OrderStatus::Issued;
+        bool owns = hasRow && ownsOrder(id);
+        bool statusDone = false, masterDone = false, serviceDone = false, partDone = false;
+
+        auto statusMenu = [&] {
+            if (statusDone || !hasRow || !allowed(Staff)) return;
+            OrderStatus current = order->getStatus();
+
+            QList<OrderStatus> options;
+            for (int s = 0; s <= static_cast<int>(OrderStatus::Issued); ++s) {
+                OrderStatus status = static_cast<OrderStatus>(s);
+                if (status != current && Workshop::isStatusAllowed(role, current, status) &&
+                    (role != Role::Master || owns))
+                    options.push_back(status);
+            }
+            if (options.isEmpty()) return;
+            statusDone = true;
+            QMenu* sub = menu->addMenu("Сменить статус");
+            QAction* now = sub->addAction("Сейчас: " + QString::fromStdString(statusToString(current)));
+            now->setEnabled(false);
+            sub->addSeparator();
+            for (OrderStatus status : options) {
+                QAction* action = sub->addAction(QString::fromStdString(statusToString(status)));
+                connect(action, &QAction::triggered, this,
+                    [this, id, status] { applyStatus(id, status); });
+            }
+            };
+        auto masterMenu = [&] {
+            if (masterDone || !hasRow || !allowed(FrontDesk)) return;
+            masterDone = true;
+            QMenu* sub = menu->addMenu("Назначить мастера");
+            const Master* current = order->getMaster();
+            Choices masters = masterChoices();
+            if (masters.isEmpty()) sub->addAction("Мастеров нет")->setEnabled(false);
+            for (const Choice& m : masters) {
+                QAction* action = sub->addAction(m.title);
+                action->setCheckable(true);
+                action->setChecked(current && current->getId() == m.id);
+                int newMasterId = m.id;
+                connect(action, &QAction::triggered, this,
+                    [this, id, newMasterId] { applyMaster(id, newMasterId); });
+            }
+            };
+        auto serviceMenu = [&] {
+            if (serviceDone || !hasRow) return;
+            serviceDone = true;
+            if (role != Role::Master || owns)
+                add("Добавить услугу…", Staff, [this] { onAddService(); });
+            add("Удалить услугу…", FrontDesk, [this] { onRemoveService(); });
+            };
+        auto partMenu = [&] {
+            if (partDone || !hasRow || !allowed(WorkshopStaff)) return;
+            if (role == Role::Master && !owns) return;
+            partDone = true;
+            QMenu* sub = menu->addMenu("Добавить деталь в заказ");
+            Choices parts = partChoices();
+            if (parts.isEmpty()) sub->addAction("Деталей нет")->setEnabled(false);
+            for (const Choice& p : parts) {
+                QAction* action = sub->addAction(p.title);
+                int partId = p.id;
+                connect(action, &QAction::triggered, this,
+                    [this, id, partId] { applyUsedPart(id, partId); });
+            }
+            add("Убрать деталь из заказа…", WorkshopStaff, [this] { onRemoveUsedPart(); });
+            };
+
+        if (hasRow) {
+            add("Подробнее (неисправность, услуги)", Staff, [this] { showDetails(OrdersTab); });
+            separator();
+            if (!finished) {
+                if (role == Role::Master && !order->getMaster()) {
+                    QAction* take = menu->addAction(order->isComplex()
+                        ? "Взять заказ (сложный: назначает ресепшен)" : "Взять заказ");
+                    take->setEnabled(!order->isComplex());
+                    connect(take, &QAction::triggered, this, [this] { onTakeOrder(); });
+                    separator();
+                }
+                if (column == 5) statusMenu();
+                else if (column == 3) masterMenu();
+                else if (column == 4) serviceMenu();
+                separator();
+                statusMenu();
+                masterMenu();
+                serviceMenu();
+                partMenu();
+            }
+            else if (!issued || role == Role::Admin) {
+                statusMenu();
+            }
+            separator();
+        }
+        add("Создать заказ…", FrontDesk, [this] { onCreateOrder(); });
+        if (hasRow && !finished) add("Удалить заказ", AdminOnly, [this] { onDelete(); });
+        break;
+    }
+    }
+    if (menu->isEmpty()) return;
+    menu->exec(view->viewport()->mapToGlobal(pos));
+}
 
 void MainWindow::onAddClient() {
     guarded([this] {
@@ -797,7 +801,7 @@ void MainWindow::onAddClient() {
         if (dlg.exec() != QDialog::Accepted) return;
         workshop->addClient(dlg.getClient());
         refreshTab(ClientsTab);
-    });
+        });
 }
 
 void MainWindow::onAddWatch() { addWatchFor(0); }
@@ -808,7 +812,7 @@ void MainWindow::onAddMaster() {
         if (dlg.exec() != QDialog::Accepted) return;
         workshop->addMaster(dlg.getMaster());
         refreshTab(MastersTab);
-    });
+        });
 }
 
 void MainWindow::onAddPart() {
@@ -820,18 +824,18 @@ void MainWindow::onAddPart() {
         if (merged)
             QMessageBox::information(this, "Приём детали",
                 "Такая деталь уже была на складе: количество пополнено на привезённое.");
-    });
+        });
 }
 
 void MainWindow::onAddCurrent() {
     Tab tab = currentTab();
     if (!allowed(addPermission(tab))) return;
     switch (tab) {
-        case ClientsTab: onAddClient(); break;
-        case WatchesTab: onAddWatch(); break;
-        case MastersTab: onAddMaster(); break;
-        case OrdersTab:  onCreateOrder(); break;
-        case PartsTab:   onAddPart(); break;
+    case ClientsTab: onAddClient(); break;
+    case WatchesTab: onAddWatch(); break;
+    case MastersTab: onAddMaster(); break;
+    case OrdersTab:  onCreateOrder(); break;
+    case PartsTab:   onAddPart(); break;
     }
 }
 
@@ -840,41 +844,41 @@ void MainWindow::onEdit() {
     if (!allowed((tab == MastersTab || tab == PartsTab) ? AdminOnly : FrontDesk)) return;
     guarded([this, tab] {
         switch (tab) {
-            case ClientsTab: {
-                int id = selectedId(ClientsTab);
-                ClientDialog dlg(this, &workshop->clients.findById(id));
-                if (dlg.exec() != QDialog::Accepted) return;
-                workshop->updateClient(id, dlg.getClient());
-                break;
-            }
-            case WatchesTab: {
-                int id = selectedId(WatchesTab);
-                WatchDialog dlg(clientChoices(), this, &workshop->watches.findById(id));
-                if (dlg.exec() != QDialog::Accepted) return;
-                workshop->updateWatch(id, dlg.getWatch());
-                break;
-            }
-            case MastersTab: {
-                int id = selectedId(MastersTab);
-                MasterDialog dlg(this, &workshop->masters.findById(id));
-                if (dlg.exec() != QDialog::Accepted) return;
-                workshop->updateMaster(id, dlg.getMaster());
-                break;
-            }
-            case PartsTab: {
-                int id = selectedId(PartsTab);
-                PartDialog dlg(this, &workshop->parts.findById(id));
-                if (dlg.exec() != QDialog::Accepted) return;
-                workshop->updatePart(id, dlg.getPart());
-                break;
-            }
-            case OrdersTab:
-                QMessageBox::information(this, "Редактирование",
-                    "Заказ не редактируется: используйте правую кнопку мыши по заказу.");
-                return;
+        case ClientsTab: {
+            int id = selectedId(ClientsTab);
+            ClientDialog dlg(this, &workshop->clients.findById(id));
+            if (dlg.exec() != QDialog::Accepted) return;
+            workshop->updateClient(id, dlg.getClient());
+            break;
         }
-        refreshAll();     
-    });
+        case WatchesTab: {
+            int id = selectedId(WatchesTab);
+            WatchDialog dlg(clientChoices(), this, &workshop->watches.findById(id));
+            if (dlg.exec() != QDialog::Accepted) return;
+            workshop->updateWatch(id, dlg.getWatch());
+            break;
+        }
+        case MastersTab: {
+            int id = selectedId(MastersTab);
+            MasterDialog dlg(this, &workshop->masters.findById(id));
+            if (dlg.exec() != QDialog::Accepted) return;
+            workshop->updateMaster(id, dlg.getMaster());
+            break;
+        }
+        case PartsTab: {
+            int id = selectedId(PartsTab);
+            PartDialog dlg(this, &workshop->parts.findById(id));
+            if (dlg.exec() != QDialog::Accepted) return;
+            workshop->updatePart(id, dlg.getPart());
+            break;
+        }
+        case OrdersTab:
+            QMessageBox::information(this, "Редактирование",
+                "Заказ не редактируется: используйте правую кнопку мыши по заказу.");
+            return;
+        }
+        refreshAll();
+        });
 }
 
 void MainWindow::onDelete() {
@@ -885,16 +889,15 @@ void MainWindow::onDelete() {
         if (QMessageBox::question(this, "Удаление", "Удалить выбранную запись?") != QMessageBox::Yes)
             return;
         switch (tab) {
-            case ClientsTab: workshop->removeClient(id); break;
-            case WatchesTab: workshop->removeWatch(id); break;
-            case MastersTab: workshop->removeMaster(id); break;
-            case OrdersTab:  workshop->removeOrder(id); break;
-            case PartsTab:   workshop->removePart(id); break;
+        case ClientsTab: workshop->removeClient(id); break;
+        case WatchesTab: workshop->removeWatch(id); break;
+        case MastersTab: workshop->removeMaster(id); break;
+        case OrdersTab:  workshop->removeOrder(id); break;
+        case PartsTab:   workshop->removePart(id); break;
         }
-        refreshAll();      
-    });
+        refreshAll();
+        });
 }
-
 
 void MainWindow::onCreateOrder() { createOrderFor(0, 0); }
 
@@ -903,7 +906,7 @@ void MainWindow::onTakeOrder() {
         int orderId = selectedId(OrdersTab);
         workshop->takeOrder(orderId);
         refreshTab(OrdersTab);
-    });
+        });
 }
 
 void MainWindow::onAssignMaster() {
@@ -912,7 +915,7 @@ void MainWindow::onAssignMaster() {
         int newMasterId = 0;
         if (!pick("Назначение мастера", masterChoices(), newMasterId)) return;
         applyMaster(orderId, newMasterId);
-    });
+        });
 }
 
 void MainWindow::onAddService() {
@@ -920,30 +923,30 @@ void MainWindow::onAddService() {
         int orderId = selectedId(OrdersTab);
         const Order& order = workshop->orders.findById(orderId);
         if (!order.getWatch()) throw InvalidInputException("у заказа нет часов");
-        const Watch* w = order.getWatch();                  // услуги подбираются по часам заказа
+        const Watch* w = order.getWatch();
         Choices watches;
-        watches.push_back({w->getId(), QString::fromStdString(w->getBrand() + " " + w->getModel()),
+        watches.push_back({ w->getId(), QString::fromStdString(w->getBrand() + " " + w->getModel()),
                            w->getClientId(), QString::fromStdString(w->getMechanismType()),
-                           QString::fromStdString(w->getBrand())});
+                           QString::fromStdString(w->getBrand()) });
         OrderDialog dlg({}, watches, {}, true, this);
         if (dlg.exec() != QDialog::Accepted) return;
         workshop->addService(orderId, dlg.getService());
         refreshTab(OrdersTab);
-    });
+        });
 }
 
 void MainWindow::onRemoveService() {
     guarded([this] {
         int orderId = selectedId(OrdersTab);
-        Choices services;                                    // id услуги - её номер в заказе
+        Choices services;
         const auto& list = workshop->orders.findById(orderId).getServices();
         for (std::size_t i = 0; i < list.size(); ++i)
-            services.push_back({static_cast<int>(i), QString::fromStdString(list[i]->getName()), 0, "", ""});
+            services.push_back({ static_cast<int>(i), QString::fromStdString(list[i]->getName()), 0, "", "" });
         int index = 0;
         if (!pick("Удалить услугу из заказа", services, index)) return;
         workshop->removeService(orderId, static_cast<std::size_t>(index));
         refreshTab(OrdersTab);
-    });
+        });
 }
 
 void MainWindow::onAddUsedPart() {
@@ -952,24 +955,24 @@ void MainWindow::onAddUsedPart() {
         int partId = 0;
         if (!pick("Деталь для заказа", partChoices(), partId)) return;
         applyUsedPart(orderId, partId);
-    });
+        });
 }
 
 void MainWindow::onRemoveUsedPart() {
     guarded([this] {
         int orderId = selectedId(OrdersTab);
-        Choices used;                                        
+        Choices used;
         for (const Part* p : workshop->orders.findById(orderId).getUsedParts()) {
             bool known = std::any_of(used.begin(), used.end(),
-                                     [p](const Choice& c) { return c.id == p->getId(); });
-            if (!known) used.push_back({p->getId(), QString::fromStdString(p->getName()), 0, "", ""});
+                [p](const Choice& c) { return c.id == p->getId(); });
+            if (!known) used.push_back({ p->getId(), QString::fromStdString(p->getName()), 0, "", "" });
         }
         int partId = 0;
         if (!pick("Убрать деталь из заказа", used, partId)) return;
-        workshop->removeUsedPart(orderId, partId);          
+        workshop->removeUsedPart(orderId, partId);
         refreshTab(OrdersTab);
         refreshTab(PartsTab);
-    });
+        });
 }
 
 void MainWindow::onChangeStatus() {
@@ -993,9 +996,8 @@ void MainWindow::onChangeStatus() {
         QString chosen = QInputDialog::getItem(this, "Смена статуса", "Новый статус:", names, 0, false, &ok);
         if (!ok) return;
         applyStatus(orderId, statuses[static_cast<int>(names.indexOf(chosen))]);
-    });
+        });
 }
-
 
 void MainWindow::onRestockPart() {
     guarded([this] {
@@ -1005,7 +1007,7 @@ void MainWindow::onRestockPart() {
         if (!ok) return;
         workshop->restockPart(partId, qty);
         refreshTab(PartsTab);
-    });
+        });
 }
 
 void MainWindow::onWriteOffPart() {
@@ -1016,9 +1018,8 @@ void MainWindow::onWriteOffPart() {
         if (!ok) return;
         workshop->writeOffPart(partId, qty);
         refreshTab(PartsTab);
-    });
+        });
 }
-
 
 void MainWindow::onCreateAccount() {
     guarded([this] {
@@ -1029,17 +1030,17 @@ void MainWindow::onCreateAccount() {
         QString password = QInputDialog::getText(this, "Новая учётная запись",
             "Пароль (не короче 4 символов):", QLineEdit::Password, "", &ok);
         if (!ok) return;
-        QStringList roles{"Мастер", "Ресепшен", "Администратор"};
+        QStringList roles{ "Мастер", "Ресепшен", "Администратор" };
         QString chosen = QInputDialog::getItem(this, "Новая учётная запись", "Роль:", roles, 0, false, &ok);
         if (!ok) return;
         Role newRole = (chosen == "Мастер") ? Role::Master
-                     : (chosen == "Ресепшен") ? Role::Reception : Role::Admin;
+            : (chosen == "Ресепшен") ? Role::Reception : Role::Admin;
         int newMasterId = 0;
         if (newRole == Role::Master && !pick("Мастер для учётной записи", masterChoices(), newMasterId))
             return;
         workshop->addAccount(login.toStdString(), password.toStdString(), newRole, newMasterId);
         QMessageBox::information(this, "Учётная запись", "Учётная запись создана.");
-    });
+        });
 }
 
 void MainWindow::onRemoveAccount() {
@@ -1048,7 +1049,7 @@ void MainWindow::onRemoveAccount() {
         if (!pick("Удалить учётную запись", accountChoices(), id)) return;
         if (id == accountId) throw InvalidInputException("нельзя удалить собственную учётную запись");
         workshop->removeAccount(id);
-    });
+        });
 }
 
 void MainWindow::onChangePassword() {
@@ -1059,7 +1060,7 @@ void MainWindow::onChangePassword() {
         if (!ok) return;
         workshop->changePassword(accountId, password.toStdString());
         QMessageBox::information(this, "Смена пароля", "Пароль изменён.");
-    });
+        });
 }
 
 void MainWindow::onSwitchUser() {
