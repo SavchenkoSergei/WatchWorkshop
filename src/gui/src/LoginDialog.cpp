@@ -40,3 +40,20 @@ LoginDialog::LoginDialog(QWidget* parent) : QDialog(parent) {
     connect(guestButton, &QPushButton::clicked, this, &LoginDialog::onGuest);
     connect(quit, &QPushButton::clicked, this, &LoginDialog::reject);
 }
+
+void LoginDialog::accept() {
+    if (loginEdit->text().trimmed().isEmpty() || passwordEdit->text().isEmpty()) {
+        QMessageBox::warning(this, "Вход", "Введите логин и пароль или войдите как гость.");
+        return;
+    }
+    guest = false;
+    QDialog::accept();
+}
+
+void LoginDialog::onGuest() {
+    guest = true;
+    QDialog::accept();
+}
+
+QString LoginDialog::getLogin() const { return loginEdit->text().trimmed(); }
+QString LoginDialog::getPassword() const { return passwordEdit->text(); }

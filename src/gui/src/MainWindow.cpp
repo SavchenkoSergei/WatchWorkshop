@@ -581,21 +581,21 @@ void MainWindow::createOrderFor(int clientId, int watchId) {
 }
 
 void MainWindow::applyStatus(int orderId, OrderStatus status) {
-    guarded([&] {
+    guarded([this, orderId, status] {
         workshop->changeStatus(orderId, status);
         refreshTab(OrdersTab);
         });
 }
 
 void MainWindow::applyMaster(int orderId, int newMasterId) {
-    guarded([&] {
+    guarded([this, orderId, newMasterId] {
         workshop->assignMaster(orderId, newMasterId);
         refreshTab(OrdersTab);
         });
 }
 
 void MainWindow::applyUsedPart(int orderId, int partId) {
-    guarded([&] {
+    guarded([this, orderId, partId] {
         workshop->addUsedPart(orderId, partId);
         refreshTab(OrdersTab);
         refreshTab(PartsTab);
@@ -604,195 +604,199 @@ void MainWindow::applyUsedPart(int orderId, int partId) {
 
 void MainWindow::showContextMenu(Tab tab, const QPoint& pos) {
     if (role == Role::Guest) return;
+
     QTableView* view = tables[tab];
     QModelIndex idx = view->indexAt(pos);
     bool hasRow = idx.isValid();
+
     if (hasRow) {
         view->selectRow(idx.row());
         view->setCurrentIndex(idx);
     }
+
     int id = hasRow ? idx.sibling(idx.row(), 0).data().toInt() : 0;
     int column = hasRow ? idx.column() : -1;
 
     auto menu = std::make_unique<QMenu>(this);
-    auto add = [&](const QString& title, int who, std::function<void()> action) {
-        if (!allowed(who)) return;
-        QAction* a = menu->addAction(title);
-        connect(a, &QAction::triggered, this, [action] { action(); });
-        };
-    auto separator = [&] {
-        if (!menu->isEmpty() && !menu->actions().last()->isSeparator()) menu->addSeparator();
-        };
+    ContextMenuHelper helper{ this, menu.get() };
 
     switch (tab) {
-    case ClientsTab:
-        add("Добавить клиента", FrontDesk, [this] { onAddClient(); });
-        if (hasRow) {
-            add("Принять часы этого клиента…", FrontDesk, [this, id] { addWatchFor(id); });
-            add("Редактировать", FrontDesk, [this] { onEdit(); });
-            separator();
-            add("Удалить", AdminOnly, [this] { onDelete(); });
-        }
-        break;
-
-    case WatchesTab:
-        add("Принять часы", FrontDesk, [this] { onAddWatch(); });
-        if (hasRow) {
-            int owner = workshop->watches.findById(id).getClientId();
-            add("Подробнее (неисправность)", Staff, [this] { showDetails(WatchesTab); });
-            add("Создать заказ на эти часы…", FrontDesk, [this, owner, id] { createOrderFor(owner, id); });
-            add("Редактировать", FrontDesk, [this] { onEdit(); });
-            separator();
-            add("Удалить", AdminOnly, [this] { onDelete(); });
-        }
-        break;
-
-    case MastersTab:
-        add("Добавить мастера", AdminOnly, [this] { onAddMaster(); });
-        if (hasRow) {
-            if (allowed(FrontDesk)) {
-                QMenu* sub = menu->addMenu("Назначить на заказ");
-                Choices orders = orderChoices();
-                if (orders.isEmpty()) sub->addAction("Свободных заказов нет")->setEnabled(false);
-                for (const Choice& o : orders) {
-                    QAction* action = sub->addAction(o.title);
-                    int orderId = o.id;
-                    connect(action, &QAction::triggered, this,
-                        [this, orderId, id] { applyMaster(orderId, id); });
-                }
-            }
-            add("Редактировать", AdminOnly, [this] { onEdit(); });
-            separator();
-            add("Удалить", AdminOnly, [this] { onDelete(); });
-        }
-        break;
-
-    case PartsTab:
-        add("Добавить деталь", FrontDesk, [this] { onAddPart(); });
-        if (hasRow) {
-            add("Принять партию (пополнить остаток)…", FrontDesk, [this] { onRestockPart(); });
-            add("Списать…", WorkshopStaff, [this] { onWriteOffPart(); });
-            if (allowed(WorkshopStaff)) {
-                QMenu* sub = menu->addMenu("Добавить в заказ");
-                Choices orders = orderChoices(role == Role::Master);
-                if (orders.isEmpty()) sub->addAction("Свободных заказов нет")->setEnabled(false);
-                for (const Choice& o : orders) {
-                    QAction* action = sub->addAction(o.title);
-                    int orderId = o.id;
-                    connect(action, &QAction::triggered, this,
-                        [this, orderId, id] { applyUsedPart(orderId, id); });
-                }
-            }
-            separator();
-            add("Редактировать", AdminOnly, [this] { onEdit(); });
-            add("Удалить", AdminOnly, [this] { onDelete(); });
-        }
-        break;
-
-    case LogTab:
-        break;
-
-    case OrdersTab: {
-        const Order* order = hasRow ? &workshop->orders.findById(id) : nullptr;
-        bool finished = order && order->getStatus() >= OrderStatus::Ready;
-        bool issued = order && order->getStatus() == OrderStatus::Issued;
-        bool owns = hasRow && ownsOrder(id);
-        bool statusDone = false, masterDone = false, serviceDone = false, partDone = false;
-
-        auto statusMenu = [&] {
-            if (statusDone || !hasRow || !allowed(Staff)) return;
-            OrderStatus current = order->getStatus();
-
-            QList<OrderStatus> options;
-            for (int s = 0; s <= static_cast<int>(OrderStatus::Issued); ++s) {
-                OrderStatus status = static_cast<OrderStatus>(s);
-                if (status != current && Workshop::isStatusAllowed(role, current, status) &&
-                    (role != Role::Master || owns))
-                    options.push_back(status);
-            }
-            if (options.isEmpty()) return;
-            statusDone = true;
-            QMenu* sub = menu->addMenu("Сменить статус");
-            QAction* now = sub->addAction("Сейчас: " + QString::fromStdString(statusToString(current)));
-            now->setEnabled(false);
-            sub->addSeparator();
-            for (OrderStatus status : options) {
-                QAction* action = sub->addAction(QString::fromStdString(statusToString(status)));
-                connect(action, &QAction::triggered, this,
-                    [this, id, status] { applyStatus(id, status); });
-            }
-            };
-        auto masterMenu = [&] {
-            if (masterDone || !hasRow || !allowed(FrontDesk)) return;
-            masterDone = true;
-            QMenu* sub = menu->addMenu("Назначить мастера");
-            const Master* current = order->getMaster();
-            Choices masters = masterChoices();
-            if (masters.isEmpty()) sub->addAction("Мастеров нет")->setEnabled(false);
-            for (const Choice& m : masters) {
-                QAction* action = sub->addAction(m.title);
-                action->setCheckable(true);
-                action->setChecked(current && current->getId() == m.id);
-                int newMasterId = m.id;
-                connect(action, &QAction::triggered, this,
-                    [this, id, newMasterId] { applyMaster(id, newMasterId); });
-            }
-            };
-        auto serviceMenu = [&] {
-            if (serviceDone || !hasRow) return;
-            serviceDone = true;
-            if (role != Role::Master || owns)
-                add("Добавить услугу…", Staff, [this] { onAddService(); });
-            add("Удалить услугу…", FrontDesk, [this] { onRemoveService(); });
-            };
-        auto partMenu = [&] {
-            if (partDone || !hasRow || !allowed(WorkshopStaff)) return;
-            if (role == Role::Master && !owns) return;
-            partDone = true;
-            QMenu* sub = menu->addMenu("Добавить деталь в заказ");
-            Choices parts = partChoices();
-            if (parts.isEmpty()) sub->addAction("Деталей нет")->setEnabled(false);
-            for (const Choice& p : parts) {
-                QAction* action = sub->addAction(p.title);
-                int partId = p.id;
-                connect(action, &QAction::triggered, this,
-                    [this, id, partId] { applyUsedPart(id, partId); });
-            }
-            add("Убрать деталь из заказа…", WorkshopStaff, [this] { onRemoveUsedPart(); });
-            };
-
-        if (hasRow) {
-            add("Подробнее (неисправность, услуги)", Staff, [this] { showDetails(OrdersTab); });
-            separator();
-            if (!finished) {
-                if (role == Role::Master && !order->getMaster()) {
-                    QAction* take = menu->addAction(order->isComplex()
-                        ? "Взять заказ (сложный: назначает ресепшен)" : "Взять заказ");
-                    take->setEnabled(!order->isComplex());
-                    connect(take, &QAction::triggered, this, [this] { onTakeOrder(); });
-                    separator();
-                }
-                if (column == 5) statusMenu();
-                else if (column == 3) masterMenu();
-                else if (column == 4) serviceMenu();
-                separator();
-                statusMenu();
-                masterMenu();
-                serviceMenu();
-                partMenu();
-            }
-            else if (!issued || role == Role::Admin) {
-                statusMenu();
-            }
-            separator();
-        }
-        add("Создать заказ…", FrontDesk, [this] { onCreateOrder(); });
-        if (hasRow && !finished) add("Удалить заказ", AdminOnly, [this] { onDelete(); });
-        break;
+    case ClientsTab: buildClientsMenu(helper, hasRow, id); break;
+    case WatchesTab: buildWatchesMenu(helper, hasRow, id); break;
+    case MastersTab: buildMastersMenu(helper, hasRow, id); break;
+    case PartsTab:   buildPartsMenu(helper, hasRow, id); break;
+    case OrdersTab:  buildOrdersMenu(helper, hasRow, id, column); break;
+    case LogTab:     break;
     }
+
+    if (!menu->isEmpty()) {
+        menu->exec(view->viewport()->mapToGlobal(pos));
     }
-    if (menu->isEmpty()) return;
-    menu->exec(view->viewport()->mapToGlobal(pos));
+}
+
+void MainWindow::buildClientsMenu(ContextMenuHelper& m, bool hasRow, int id) {
+    m.add("Добавить клиента", FrontDesk, [this] { onAddClient(); });
+    if (!hasRow) return;
+
+    m.add("Принять часы этого клиента…", FrontDesk, [this, id] { addWatchFor(id); });
+    m.add("Редактировать", FrontDesk, [this] { onEdit(); });
+    m.separator();
+    m.add("Удалить", AdminOnly, [this] { onDelete(); });
+}
+
+void MainWindow::buildWatchesMenu(ContextMenuHelper& m, bool hasRow, int id) {
+    m.add("Принять часы", FrontDesk, [this] { onAddWatch(); });
+    if (!hasRow) return;
+
+    int owner = workshop->watches.findById(id).getClientId();
+    m.add("Подробнее (неисправность)", Staff, [this] { showDetails(WatchesTab); });
+    m.add("Создать заказ на эти часы…", FrontDesk, [this, owner, id] { createOrderFor(owner, id); });
+    m.add("Редактировать", FrontDesk, [this] { onEdit(); });
+    m.separator();
+    m.add("Удалить", AdminOnly, [this] { onDelete(); });
+}
+
+void MainWindow::buildMastersMenu(ContextMenuHelper& m, bool hasRow, int id) {
+    m.add("Добавить мастера", AdminOnly, [this] { onAddMaster(); });
+    if (!hasRow) return;
+
+    if (allowed(FrontDesk)) {
+        m.addChoiceSubmenu("Назначить на заказ", "Свободных заказов нет", orderChoices(),
+            [this, id](int orderId) { applyMaster(orderId, id); });
+    }
+    m.add("Редактировать", AdminOnly, [this] { onEdit(); });
+    m.separator();
+    m.add("Удалить", AdminOnly, [this] { onDelete(); });
+}
+
+void MainWindow::buildPartsMenu(ContextMenuHelper& m, bool hasRow, int id) {
+    m.add("Добавить деталь", FrontDesk, [this] { onAddPart(); });
+    if (!hasRow) return;
+
+    m.add("Принять партию (пополнить остаток)…", FrontDesk, [this] { onRestockPart(); });
+    m.add("Списать…", WorkshopStaff, [this] { onWriteOffPart(); });
+    if (allowed(WorkshopStaff)) {
+        m.addChoiceSubmenu("Добавить в заказ", "Свободных заказов нет",
+            orderChoices(role == Role::Master),
+            [this, id](int orderId) { applyUsedPart(orderId, id); });
+    }
+    m.separator();
+    m.add("Редактировать", AdminOnly, [this] { onEdit(); });
+    m.add("Удалить", AdminOnly, [this] { onDelete(); });
+}
+
+void MainWindow::buildOrdersMenu(ContextMenuHelper& m, bool hasRow, int id, int column) {
+    const Order* order = hasRow ? &workshop->orders.findById(id) : nullptr;
+    bool finished = order && order->getStatus() >= OrderStatus::Ready;
+    bool issued = order && order->getStatus() == OrderStatus::Issued;
+
+    OrderMenuContext ctx{ m, order, id, hasRow, hasRow && ownsOrder(id) };
+
+    if (hasRow) {
+        m.add("Подробнее (неисправность, услуги)", Staff, [this] { showDetails(OrdersTab); });
+        m.separator();
+
+        if (!finished) {
+            addOrderTakeAction(ctx);
+            if (column == 5) addOrderStatusMenu(ctx);
+            else if (column == 3) addOrderMasterMenu(ctx);
+            else if (column == 4) addOrderServiceMenu(ctx);
+            m.separator();
+            addOrderStatusMenu(ctx);
+            addOrderMasterMenu(ctx);
+            addOrderServiceMenu(ctx);
+            addOrderPartMenu(ctx);
+        }
+        else if (!issued || role == Role::Admin) {
+            addOrderStatusMenu(ctx);
+        }
+        m.separator();
+    }
+
+    m.add("Создать заказ…", FrontDesk, [this] { onCreateOrder(); });
+    if (hasRow && !finished) {
+        m.add("Удалить заказ", AdminOnly, [this] { onDelete(); });
+    }
+}
+
+void MainWindow::addOrderTakeAction(OrderMenuContext& ctx) {
+    if (role != Role::Master || ctx.order->getMaster()) return;
+
+    QAction* take = ctx.m.menu->addAction(ctx.order->isComplex()
+        ? "Взять заказ (сложный: назначает ресепшен)" : "Взять заказ");
+    take->setEnabled(!ctx.order->isComplex());
+    connect(take, &QAction::triggered, this, [this] { onTakeOrder(); });
+    ctx.m.separator();
+}
+
+void MainWindow::addOrderStatusMenu(OrderMenuContext& ctx) {
+    if (ctx.statusDone || !ctx.hasRow || !allowed(Staff)) return;
+
+    OrderStatus current = ctx.order->getStatus();
+    QList<OrderStatus> options;
+    for (int s = 0; s <= static_cast<int>(OrderStatus::Issued); ++s) {
+        OrderStatus status = static_cast<OrderStatus>(s);
+        if (status != current && Workshop::isStatusAllowed(role, current, status) &&
+            (role != Role::Master || ctx.owns)) {
+            options.push_back(status);
+        }
+    }
+    if (options.isEmpty()) return;
+
+    ctx.statusDone = true;
+    QMenu* sub = ctx.m.menu->addMenu("Сменить статус");
+    QAction* now = sub->addAction("Сейчас: " + QString::fromStdString(statusToString(current)));
+    now->setEnabled(false);
+    sub->addSeparator();
+
+    int id = ctx.id;
+    for (OrderStatus status : options) {
+        QAction* action = sub->addAction(QString::fromStdString(statusToString(status)));
+        connect(action, &QAction::triggered, this, [this, id, status] { applyStatus(id, status); });
+    }
+}
+
+void MainWindow::addOrderMasterMenu(OrderMenuContext& ctx) {
+    if (ctx.masterDone || !ctx.hasRow || !allowed(FrontDesk)) return;
+
+    ctx.masterDone = true;
+    QMenu* sub = ctx.m.menu->addMenu("Назначить мастера");
+    const Master* current = ctx.order->getMaster();
+    Choices masters = masterChoices();
+
+    if (masters.isEmpty()) {
+        sub->addAction("Мастеров нет")->setEnabled(false);
+    }
+
+    int id = ctx.id;
+    for (const Choice& m : masters) {
+        QAction* action = sub->addAction(m.title);
+        action->setCheckable(true);
+        action->setChecked(current && current->getId() == m.id);
+        int newMasterId = m.id;
+        connect(action, &QAction::triggered, this, [this, id, newMasterId] { applyMaster(id, newMasterId); });
+    }
+}
+
+void MainWindow::addOrderServiceMenu(OrderMenuContext& ctx) {
+    if (ctx.serviceDone || !ctx.hasRow) return;
+
+    ctx.serviceDone = true;
+    if (role != Role::Master || ctx.owns) {
+        ctx.m.add("Добавить услугу…", Staff, [this] { onAddService(); });
+    }
+    ctx.m.add("Удалить услугу…", FrontDesk, [this] { onRemoveService(); });
+}
+
+void MainWindow::addOrderPartMenu(OrderMenuContext& ctx) {
+    if (ctx.partDone || !ctx.hasRow || !allowed(WorkshopStaff)) return;
+    if (role == Role::Master && !ctx.owns) return;
+
+    ctx.partDone = true;
+    int id = ctx.id;
+    ctx.m.addChoiceSubmenu("Добавить деталь в заказ", "Деталей нет", partChoices(),
+        [this, id](int partId) { applyUsedPart(id, partId); });
+    ctx.m.add("Убрать деталь из заказа…", WorkshopStaff, [this] { onRemoveUsedPart(); });
 }
 
 void MainWindow::onAddClient() {

@@ -2,6 +2,8 @@
 #include <QKeySequence>
 #include <QList>
 #include <QMainWindow>
+#include <QMenu>
+#include <functional>
 
 #include "Account.h"
 #include "DialogTypes.h"
@@ -24,7 +26,7 @@ class QTimer;
 class LogTableModel;
 class SortProxy;
 class Workshop;
-
+class Order;
 
 class MainWindow : public QMainWindow {
 public:
@@ -36,6 +38,62 @@ protected:
     void closeEvent(QCloseEvent* event) override;
 
 private:
+    struct ContextMenuHelper {
+        MainWindow* win;
+        QMenu* menu;
+
+        void add(const QString& title, int who, std::function<void()> action) {
+            if (!win->allowed(who)) return;
+            QAction* a = menu->addAction(title);
+            QObject::connect(a, &QAction::triggered, win, [action] { action(); });
+        }
+
+        void separator() {
+            if (!menu->isEmpty() && !menu->actions().last()->isSeparator()) {
+                menu->addSeparator();
+            }
+        }
+
+        void addChoiceSubmenu(const QString& title, const QString& emptyText,
+            const Choices& choices, std::function<void(int)> onSelect) {
+            QMenu* sub = menu->addMenu(title);
+            if (choices.isEmpty()) {
+                sub->addAction(emptyText)->setEnabled(false);
+                return;
+            }
+            for (const Choice& c : choices) {
+                QAction* action = sub->addAction(c.title);
+                int choiceId = c.id;
+                QObject::connect(action, &QAction::triggered, win, [onSelect, choiceId] {
+                    onSelect(choiceId);
+                    });
+            }
+        }
+    };
+
+    void buildClientsMenu(ContextMenuHelper& m, bool hasRow, int id);
+    void buildWatchesMenu(ContextMenuHelper& m, bool hasRow, int id);
+    void buildMastersMenu(ContextMenuHelper& m, bool hasRow, int id);
+    void buildPartsMenu(ContextMenuHelper& m, bool hasRow, int id);
+    void buildOrdersMenu(ContextMenuHelper& m, bool hasRow, int id, int column);
+
+    struct OrderMenuContext {
+        ContextMenuHelper& m;
+        const Order* order;
+        int id;
+        bool hasRow;
+        bool owns;
+        bool statusDone = false;
+        bool masterDone = false;
+        bool serviceDone = false;
+        bool partDone = false;
+    };
+
+    void addOrderTakeAction(OrderMenuContext& ctx);
+    void addOrderStatusMenu(OrderMenuContext& ctx);
+    void addOrderMasterMenu(OrderMenuContext& ctx);
+    void addOrderServiceMenu(OrderMenuContext& ctx);
+    void addOrderPartMenu(OrderMenuContext& ctx);
 
     enum Tab { ClientsTab = 0, WatchesTab, MastersTab, OrdersTab, PartsTab, LogTab };
 
