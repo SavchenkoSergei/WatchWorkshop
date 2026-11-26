@@ -1,6 +1,5 @@
 #pragma once
-// Работа с датами в формате «ГГГГ-ММ-ДД»: текущая дата, прибавление рабочих дней,
-// разница в днях. Строки в этом формате сравниваются лексикографически как даты.
+
 #include <chrono>
 #include <cstdio>
 #include <ctime>
@@ -42,7 +41,6 @@ inline std::string today() {
     return format(Day{ymd});
 }
 
-// Текущая дата и время в формате «ГГГГ-ММ-ДД ЧЧ:ММ:СС» (для журнала действий).
 inline std::string now() {
     std::time_t t = std::time(nullptr);
     std::tm tm{};
@@ -55,8 +53,6 @@ inline std::string now() {
     std::strftime(buf, sizeof buf, "%Y-%m-%d %H:%M:%S", &tm);
     return buf;
 }
-
-// Дата через n рабочих дней (суббота и воскресенье не считаются).
 inline std::string addWorkdays(const std::string& date, int n) {
     auto start = parse(date);
     if (!start) return date;
@@ -69,11 +65,10 @@ inline std::string addWorkdays(const std::string& date, int n) {
     return format(cur);
 }
 
-// Сколько календарных дней от from до to (отрицательное, если to раньше from).
 inline int daysBetween(const std::string& from, const std::string& to) {
     auto a = parse(from), b = parse(to);
     if (!a || !b) return 0;
     return static_cast<int>((*b - *a).count());
 }
 
-} // namespace dates
+}

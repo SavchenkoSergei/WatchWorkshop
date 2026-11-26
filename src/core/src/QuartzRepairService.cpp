@@ -7,9 +7,9 @@ QuartzRepairService::QuartzRepairService(std::string name, double baseCost, int 
 
 double QuartzRepairService::calculateCost() const { return baseWithComplexity(); }
 
-int QuartzRepairService::calculateDuration() const { return complexity; }
+int QuartzRepairService::calculateDuration() const { return getComplexity(); }
 
 void QuartzRepairService::write(std::ostream& os) const {
     writeCommon(os, "quartz");
-    os << 0 << ' ';                                   // дополнительного параметра нет
+    os << 0 << ' ';                                  
 }

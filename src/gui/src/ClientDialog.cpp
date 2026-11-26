@@ -21,7 +21,6 @@ ClientDialog::ClientDialog(QWidget* parent, const Client* existing) : QDialog(pa
         emailEdit->setText(QString::fromStdString(existing->getEmail()));
     }
 
-    // телефон приводится к виду «+375 29 824 9433», как только пользователь закончил ввод
     connect(phoneEdit, &QLineEdit::editingFinished, this, [this] {
         phoneEdit->setText(QString::fromStdString(
             validation::formatPhone(phoneEdit->text().trimmed().toStdString())));

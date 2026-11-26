@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 
-// Статусы заказа. Порядок значений соответствует жизненному циклу ремонта.
+
 enum class OrderStatus { Accepted = 0, Diagnostics, InProgress, Ready, Issued };
 
 inline std::string statusToString(OrderStatus s) {

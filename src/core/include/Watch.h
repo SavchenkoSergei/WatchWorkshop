@@ -7,8 +7,6 @@
 class Client;
 class Workshop;
 
-// Часы, принятые в ремонт. В файл записывается clientId, а указатель client
-// восстанавливается после загрузки методом resolveLinks.
 class Watch {
 public:
     Watch() = default;
@@ -26,7 +24,6 @@ public:
     const std::string& getMechanismType() const { return mechanismType; }
     const std::string& getDefectDescription() const { return defectDescription; }
 
-    // Допустимые типы механизма (выбираются из списка).
     static const std::vector<std::string>& mechanismTypes();
 
     void resolveLinks(Workshop& w);

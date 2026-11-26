@@ -2,7 +2,6 @@
 #include <iosfwd>
 #include <string>
 
-// Роли пользователей. Guest - режим просмотра без входа (аккаунта у него нет).
 enum class Role { Guest = 0, Master, Reception, Admin };
 
 inline std::string roleToString(Role r) {
@@ -15,9 +14,6 @@ inline std::string roleToString(Role r) {
     return "?";
 }
 
-// Учётная запись сотрудника. Пароль хранится только в виде хеша.
-// Хеш учебный (FNV-1a с солью и многократным применением) и не рассчитан на
-// защиту от целенаправленного взлома.
 class Account {
 public:
     Account() = default;
@@ -27,7 +23,7 @@ public:
     void setId(int newId) { id = newId; }
     const std::string& getLogin() const { return login; }
     Role getRole() const { return role; }
-    int getMasterId() const { return masterId; }      // связанный мастер (0 - нет)
+    int getMasterId() const { return masterId; }     
     void setPasswordHash(std::string hash) { passwordHash = std::move(hash); }
 
     bool checkPassword(const std::string& password) const;

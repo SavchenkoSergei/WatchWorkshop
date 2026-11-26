@@ -14,7 +14,7 @@ double MechanicalRepairService::calculateCost() const {
     return baseWithComplexity() + levelPrice * disassemblyLevel;
 }
 
-int MechanicalRepairService::calculateDuration() const { return complexity + disassemblyLevel; }
+int MechanicalRepairService::calculateDuration() const { return getComplexity() + disassemblyLevel; }
 
 void MechanicalRepairService::write(std::ostream& os) const {
     writeCommon(os, "mechanical");

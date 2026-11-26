@@ -11,14 +11,14 @@
 
 const std::vector<ServiceTemplate>& ServiceCatalog::all() {
     static const std::vector<ServiceTemplate> list = {
-        // кварцевые часы
+  
         {"Диагностика", "кварцевый", 10, ServiceExtra::None},
         {"Замена элемента питания", "кварцевый", 8, ServiceExtra::None},
         {"Замена стекла", "кварцевый", 25, ServiceExtra::None},
         {"Замена ремешка или браслета", "кварцевый", 12, ServiceExtra::None},
         {"Проверка и восстановление водозащиты", "кварцевый", 30, ServiceExtra::None},
         {"Замена кварцевого механизма", "кварцевый", 45, ServiceExtra::None},
-        // механические часы
+
         {"Диагностика", "механический", 15, ServiceExtra::None},
         {"Чистка и смазка механизма", "механический", 60, ServiceExtra::Disassembly},
         {"Регулировка хода", "механический", 40, ServiceExtra::None},
@@ -26,7 +26,7 @@ const std::vector<ServiceTemplate>& ServiceCatalog::all() {
         {"Замена заводной пружины", "механический", 55, ServiceExtra::Disassembly},
         {"Замена стекла", "механический", 30, ServiceExtra::None},
         {"Реставрация механизма", "механический", 120, ServiceExtra::Disassembly},
-        // хронографы
+
         {"Диагностика", "хронограф", 20, ServiceExtra::None},
         {"Чистка и смазка хронографа", "хронограф", 100, ServiceExtra::Complications},
         {"Настройка хронографа", "хронограф", 70, ServiceExtra::Complications},
@@ -54,7 +54,7 @@ bool containsAny(const std::string& text, const std::vector<std::string>& words)
     return std::any_of(words.begin(), words.end(),
                        [&](const std::string& w) { return text.find(w) != std::string::npos; });
 }
-} // namespace
+} 
 
 BrandInfo ServiceCatalog::brandInfo(const std::string& brand) {
     static const std::vector<std::string> premium = {"rolex", "omega", "patek", "audemars", "cartier",

@@ -1,8 +1,4 @@
 #pragma once
-// Собственные алгоритмы проекта: устойчивая сортировка слиянием.
-// Версия для std::vector использует вспомогательный буфер,
-// версия для std::list переставляет узлы через splice, не копируя и не
-// перемещая элементы, поэтому указатели на элементы остаются действительными.
 #include <cstddef>
 #include <iterator>
 #include <list>
@@ -22,7 +18,6 @@ void mergeSortRange(std::vector<T>& v, std::size_t lo, std::size_t hi, Cmp& cmp)
     tmp.reserve(hi - lo);
     std::size_t i = lo, j = mid;
     while (i < mid && j < hi) {
-        // берём из правой половины только строго меньший элемент: сортировка устойчива
         if (cmp(v[j], v[i])) tmp.push_back(std::move(v[j++]));
         else                 tmp.push_back(std::move(v[i++]));
     }
@@ -41,7 +36,7 @@ void mergeSort(std::list<T>& lst, Cmp cmp) {
     if (lst.size() < 2) return;
     std::list<T> right;
     auto mid = std::next(lst.begin(), static_cast<std::ptrdiff_t>(lst.size() / 2));
-    right.splice(right.begin(), lst, mid, lst.end());   // делим список пополам
+    right.splice(right.begin(), lst, mid, lst.end());   
 
     mergeSort(lst, cmp);
     mergeSort(right, cmp);
@@ -51,7 +46,7 @@ void mergeSort(std::list<T>& lst, Cmp cmp) {
         if (cmp(right.front(), *it)) lst.splice(it, right, right.begin());
         else ++it;
     }
-    lst.splice(lst.end(), right);                        // остаток правой половины
+    lst.splice(lst.end(), right);                     
 }
 
-} // namespace algo
+}

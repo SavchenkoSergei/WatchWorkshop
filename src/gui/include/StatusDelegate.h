@@ -1,8 +1,7 @@
 #pragma once
 #include <QStyledItemDelegate>
 
-// Рисует значение ячейки в виде цветной «плашки» (как статус заказа в CRM-системах).
-// Цвет плашки модель отдаёт по роли Qt::UserRole.
+
 class StatusDelegate : public QStyledItemDelegate {
 public:
     explicit StatusDelegate(QObject* parent = nullptr);

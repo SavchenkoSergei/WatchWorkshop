@@ -44,7 +44,6 @@ void checkWatchFields(const Watch& w) {
         throw InvalidInputException("Тип механизма");
 }
 
-// Услуги, детали и мастера у готового и выданного заказа менять нельзя.
 void requireEditable(const Order& order) {
     if (order.getStatus() >= OrderStatus::Ready)
         throw InvalidInputException("Заказ готов или выдан: изменять его нельзя");
@@ -53,11 +52,11 @@ void requireEditable(const Order& order) {
 std::string personName(const std::string& last, const std::string& first) { return last + " " + first; }
 std::string orderLabel(const Order& o) { return "заказ №" + std::to_string(o.getId()); }
 
-} // namespace
+} 
 
 Workshop::Workshop(std::string dataDir) : storage(std::move(dataDir)) {}
 
-// ---------- пользователь, права и журнал ----------
+
 
 void Workshop::setActor(const std::string& login, Role role, int masterId) {
     actor = Actor{login, role, masterId};
@@ -83,7 +82,7 @@ void Workshop::record(const std::string& action, const std::string& details) {
     actionLog.add(LogEntry(actionLog.nextId(), dates::now(), actor.login, actor.role, action, details));
 }
 
-// ---------- клиенты, часы, мастера ----------
+
 
 void Workshop::addClient(const Client& client) {
     require({Role::Reception, Role::Admin}, "клиентов добавляет ресепшен");
@@ -108,9 +107,9 @@ void Workshop::addMaster(const Master& master) {
 void Workshop::acceptWatch(const Watch& watch) {
     require({Role::Reception, Role::Admin}, "часы принимает ресепшен");
     checkWatchFields(watch);
-    Client& owner = clients.findById(watch.getClientId());      // владелец должен существовать
+    Client& owner = clients.findById(watch.getClientId());      
     const std::string& serial = watch.getSerialNumber();
-    if (watches.findIf([&](const Watch& w) { return w.getSerialNumber() == serial; }) != watches.end())
+    if (watches.findIf([&serial](const Watch& w) { return w.getSerialNumber() == serial; }) != watches.end())
         throw InvalidInputException("Серийный номер (такие часы уже приняты)");
     Watch w = watch;
     w.setId(watches.nextId());
@@ -135,7 +134,7 @@ void Workshop::updateWatch(int id, const Watch& watch) {
     checkWatchFields(watch);
     Client& owner = clients.findById(watch.getClientId());
     const std::string& serial = watch.getSerialNumber();
-    if (watches.findIf([&](const Watch& w) { return w.getId() != id && w.getSerialNumber() == serial; })
+    if (watches.findIf([id, &serial](const Watch& w) { return w.getId() != id && w.getSerialNumber() == serial; })
         != watches.end())
         throw InvalidInputException("Серийный номер (такие часы уже приняты)");
     Watch w = watch;
@@ -154,17 +153,17 @@ void Workshop::updateMaster(int id, const Master& master) {
     record("Мастер изменён", personName(master.getLastName(), master.getFirstName()) + " (id " + std::to_string(id) + ")");
 }
 
-// ---------- детали ----------
+
 
 bool Workshop::addPart(const Part& part) {
     require({Role::Reception, Role::Admin}, "детали на склад принимает ресепшен");
     checkPart(part);
     std::string name = validation::foldCase(part.getName());
     std::string category = validation::foldCase(part.getCategory());
-    auto same = parts.findIf([&](const Part& p) {
+    auto same = parts.findIf([&name, &category](const Part& p) {
         return validation::foldCase(p.getName()) == name && validation::foldCase(p.getCategory()) == category;
-    });
-    if (same != parts.end()) {                                   // такая деталь уже есть: пополняем остаток
+        });
+    if (same != parts.end()) {                                
         if (part.getQuantity() <= 0) throw InvalidInputException("Количество (укажите, сколько привезли)");
         same->addStock(part.getQuantity());
         record("Деталь: приём партии (уже была на складе)", same->getName() + ", количество +" +
@@ -204,7 +203,7 @@ void Workshop::writeOffPart(int partId, int qty) {
                                  ", остаток " + std::to_string(part.getQuantity()));
 }
 
-// ---------- удаление ----------
+
 
 void Workshop::removeClient(int id) {
     require({Role::Admin}, "удаляет администратор");
@@ -258,8 +257,7 @@ void Workshop::removePart(int id) {
     record("Деталь удалена", name + ", остаток на момент удаления " + std::to_string(left));
 }
 
-// Незавершённый заказ (ниже «Готов») отменяется: его детали возвращаются на склад.
-// У готового и выданного заказа детали считаются использованными и остаются списанными.
+
 void Workshop::removeOrder(int id) {
     require({Role::Admin}, "удаляет администратор");
     Order& order = orders.findById(id);
@@ -274,7 +272,7 @@ void Workshop::removeOrder(int id) {
     record("Заказ удалён", label + (returned ? ", возвращено деталей на склад: " + std::to_string(returned) : ""));
 }
 
-// ---------- заказы ----------
+
 
 int Workshop::activeOrderId(int watchId) const {
     auto it = orders.findIf([watchId](const Order& o) {
@@ -311,8 +309,7 @@ void Workshop::assignMaster(int orderId, int masterId) {
     record("Мастер назначен", orderLabel(order) + ": " + personName(master.getLastName(), master.getFirstName()));
 }
 
-// Лёгкие заказы мастера разбирают сами; сложный заказ назначает ресепшен,
-// чтобы неопытный мастер не взял его и не сорвал срок.
+
 void Workshop::takeOrder(int orderId) {
     require({Role::Master}, "брать заказ может только мастер");
     if (actor.masterId == 0) throw InvalidInputException("к вашей учётной записи не привязан мастер");
@@ -344,8 +341,7 @@ void Workshop::removeService(int orderId, std::size_t serviceIndex) {
     record("Услуга удалена из заказа", orderLabel(order) + ": " + name);
 }
 
-// Деталь списывается со склада в момент добавления в заказ (формула (2.9) при q = 1).
-// Если деталей нет, OutOfStockException выбрасывается до изменения заказа.
+
 void Workshop::addUsedPart(int orderId, int partId) {
     Order& order = orders.findById(orderId);
     Part& part = parts.findById(partId);
@@ -357,13 +353,13 @@ void Workshop::addUsedPart(int orderId, int partId) {
                                            std::to_string(part.getQuantity()));
 }
 
-// Убранная из заказа деталь возвращается на склад (формула (2.10) при q = 1).
+
 void Workshop::removeUsedPart(int orderId, int partId) {
     Order& order = orders.findById(orderId);
     Part& part = parts.findById(partId);
     requireOwnerOr(order, {Role::Admin}, "детали из заказа убирает мастер своего заказа");
     requireEditable(order);
-    order.removeUsedPart(&part);        // если детали нет в заказе, исключение до возврата на склад
+    order.removeUsedPart(&part);      
     part.addStock(1);
     record("Деталь убрана из заказа", orderLabel(order) + ": " + part.getName() + ", количество 1, остаток " +
                                           std::to_string(part.getQuantity()));
@@ -372,15 +368,14 @@ void Workshop::removeUsedPart(int orderId, int partId) {
 bool Workshop::isStatusAllowed(Role who, OrderStatus current, OrderStatus next) {
     if (who == Role::Admin) return true;
     if (who == Role::Guest) return false;
-    if (current == OrderStatus::Issued) return false;          // выданный заказ меняет только администратор
+    if (current == OrderStatus::Issued) return false;          
     if (who == Role::Master)
         return next == OrderStatus::Diagnostics || next == OrderStatus::InProgress ||
                next == OrderStatus::Ready;
-    return next == OrderStatus::Issued && current == OrderStatus::Ready;   // ресепшен выдаёт только готовый заказ
+    return next == OrderStatus::Issued && current == OrderStatus::Ready;   
 }
 
-// Статус можно менять свободно, но в рамках прав роли (см. isStatusAllowed).
-// Мастер меняет статус только того заказа, который взял сам.
+
 void Workshop::changeStatus(int orderId, OrderStatus next) {
     Order& order = orders.findById(orderId);
     OrderStatus prev = order.getStatus();
@@ -404,15 +399,15 @@ void Workshop::changeStatus(int orderId, OrderStatus next) {
         throw InvalidInputException("Мастер не назначен (нужен для статусов «В работе», «Готов», «Выдан»)");
 
     order.setStatus(next);
-    if (next == OrderStatus::Issued) order.setIssueDate(dates::today());   // дата выдачи
-    else if (prev == OrderStatus::Issued) order.setIssueDate("");          // администратор вернул заказ
+    if (next == OrderStatus::Issued) order.setIssueDate(dates::today());   
+    else if (prev == OrderStatus::Issued) order.setIssueDate("");         
     record("Смена статуса", orderLabel(order) + ": " + statusToString(prev) + " → " + statusToString(next));
 }
 
-// ---------- учётные записи ----------
+
 
 Account Workshop::login(const std::string& login, const std::string& password) const {
-    auto it = accounts.findIf([&](const Account& a) { return a.getLogin() == login; });
+    auto it = accounts.findIf([&login](const Account& a) { return a.getLogin() == login; });
     if (it == accounts.end() || !it->checkPassword(password))
         throw InvalidInputException("неверный логин или пароль");
     return *it;
@@ -423,10 +418,10 @@ void Workshop::addAccount(const std::string& login, const std::string& password,
     if (!validation::isValidLogin(login)) throw InvalidInputException("Логин (3-30 латинских букв, цифр или _)");
     if (password.size() < 4) throw InvalidInputException("Пароль (не короче 4 символов)");
     if (role == Role::Guest) throw InvalidInputException("Роль");
-    if (accounts.findIf([&](const Account& a) { return a.getLogin() == login; }) != accounts.end())
+    if (accounts.findIf([&login](const Account& a) { return a.getLogin() == login; }) != accounts.end())
         throw InvalidInputException("Логин (уже занят)");
     if (role == Role::Master) {
-        masters.findById(masterId);                              // мастер должен существовать
+        masters.findById(masterId);                           
         if (accounts.findIf([masterId](const Account& a) { return a.getMasterId() == masterId; })
             != accounts.end())
             throw InvalidInputException("Мастер (у него уже есть учётная запись)");
@@ -464,7 +459,7 @@ void Workshop::ensureDefaultAccount() {
         accounts.add(Account(1, "admin", Account::hashPassword("admin", "admin"), Role::Admin, 0));
 }
 
-// ---------- файлы ----------
+
 
 void Workshop::saveAll() { storage.saveAll(*this); }
 void Workshop::loadAll() { storage.loadAll(*this); }

@@ -14,7 +14,6 @@ class Master;
 class Part;
 class Workshop;
 
-// Идентификаторы связанных объектов, прочитанные из файла.
 struct OrderLinks {
     int clientId = 0;
     int watchId = 0;
@@ -22,8 +21,6 @@ struct OrderLinks {
     std::vector<int> partIds;
 };
 
-// Заказ-наряд. Указатели на клиента, часы, мастера и детали не владеют объектами
-// (ими владеют репозитории). Услугами владеет заказ через shared_ptr.
 class Order {
 public:
     Order() = default;
@@ -37,27 +34,26 @@ public:
     const std::vector<std::shared_ptr<Service>>& getServices() const { return services; }
     OrderStatus getStatus() const { return status; }
     const std::string& getAcceptDate() const { return acceptDate; }
-    const std::string& getIssueDate() const { return issueDate; }       // пусто, пока заказ не выдан
+    const std::string& getIssueDate() const { return issueDate; }     
     const std::vector<Part*>& getUsedParts() const { return usedParts; }
 
     void setStatus(OrderStatus newStatus) { status = newStatus; }
     void setIssueDate(std::string date) { issueDate = std::move(date); }
     void assignMaster(Master* m) { master = m; }
     void addService(std::shared_ptr<Service> service);
-    void removeService(std::size_t index);   // в заказе должна остаться хотя бы одна услуга
+    void removeService(std::size_t index);   
     void addUsedPart(Part* part) { usedParts.push_back(part); }
-    void removeUsedPart(Part* part);       // убирает одну единицу детали
+    void removeUsedPart(Part* part);       
 
-    // Наибольшая сложность среди услуг; заказ со сложностью от 4 считается сложным:
-    // мастер не может взять его сам, его назначает ресепшен.
+
     int maxComplexity() const;
     bool isComplex() const { return maxComplexity() >= complexThreshold; }
     static constexpr int complexThreshold = 4;
 
-    double totalCost() const;              // C = сумма C_i + сумма P_j
-    int deadlineDays() const;              // T = сумма T_i
-    std::string plannedDate() const;       // D2 = D1 + T (в рабочих днях)
-    int daysLeft(const std::string& today) const;   // дней до плановой даты (отрицательное - просрочен)
+    double totalCost() const;             
+    int deadlineDays() const;             
+    std::string plannedDate() const;      
+    int daysLeft(const std::string& today) const;  
 
     void resolveLinks(Workshop& w);
 

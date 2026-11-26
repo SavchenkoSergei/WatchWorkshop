@@ -43,7 +43,7 @@ int Order::maxComplexity() const {
 
 double Order::totalCost() const {
     double sum = 0;
-    for (const auto& s : services) sum += s->calculateCost();   // виртуальный вызов
+    for (const auto& s : services) sum += s->calculateCost();  
     for (const Part* p : usedParts) sum += p->getPrice();
     return sum;
 }
@@ -88,7 +88,7 @@ std::istream& operator>>(std::istream& is, Order& o) {
         is.setstate(std::ios::failbit);
         return is;
     }
-    if (n > 1000) {                       // защита от повреждённых данных
+    if (n > 1000) {                      
         is.setstate(std::ios::failbit);
         return is;
     }

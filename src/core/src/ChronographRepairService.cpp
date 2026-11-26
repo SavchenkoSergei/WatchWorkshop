@@ -14,7 +14,7 @@ double ChronographRepairService::calculateCost() const {
     return baseWithComplexity() + complicationPrice * complicationCount;
 }
 
-int ChronographRepairService::calculateDuration() const { return complexity + complicationCount; }
+int ChronographRepairService::calculateDuration() const { return getComplexity() + complicationCount; }
 
 void ChronographRepairService::write(std::ostream& os) const {
     writeCommon(os, "chronograph");

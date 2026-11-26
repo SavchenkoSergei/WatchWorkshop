@@ -25,31 +25,25 @@ class LogTableModel;
 class SortProxy;
 class Workshop;
 
-// Главное окно. Вся логика предметной области находится в Workshop,
-// обработчики только собирают данные из диалогов и вызывают его методы.
-// Набор доступных действий и видимых разделов зависит от роли:
-// гость только смотрит; мастер берёт заказы и работает с ними и со складом;
-// ресепшен принимает клиентов, часы и детали, оформляет заказы и выдаёт готовые;
-// администратор может всё.
+
 class MainWindow : public QMainWindow {
 public:
-    // masterId - мастер, связанный с учётной записью (0 у остальных ролей)
     MainWindow(Workshop* workshop, Role role, int accountId, const QString& userName, int masterId,
                QWidget* parent = nullptr);
-    bool wantsRelogin() const { return relogin; }      // пользователь выбрал «Сменить пользователя»
+    bool wantsRelogin() const { return relogin; }     
 
 protected:
     void closeEvent(QCloseEvent* event) override;
 
 private:
-    // разделы: 0 - клиенты, 1 - часы, 2 - мастера, 3 - заказы, 4 - детали, 5 - журнал (администратор)
+
     enum Tab { ClientsTab = 0, WatchesTab, MastersTab, OrdersTab, PartsTab, LogTab };
-    // кто может выполнить действие (битовая маска ролей)
+
     enum Who { ForGuest = 1, ForMaster = 2, ForReception = 4, ForAdmin = 8 };
     static constexpr int Everyone = ForGuest | ForMaster | ForReception | ForAdmin;
     static constexpr int Staff = ForMaster | ForReception | ForAdmin;
-    static constexpr int FrontDesk = ForReception | ForAdmin;       // ресепшен и администратор
-    static constexpr int WorkshopStaff = ForMaster | ForAdmin;       // мастер и администратор
+    static constexpr int FrontDesk = ForReception | ForAdmin;    
+    static constexpr int WorkshopStaff = ForMaster | ForAdmin;      
     static constexpr int AdminOnly = ForAdmin;
 
     void onAddClient();
@@ -77,50 +71,50 @@ private:
     void onOpenDataFolder();
     void showError(const WorkshopException& e);
 
-    // действия, общие для меню и контекстных меню по правой кнопке мыши
+
     void addWatchFor(int clientId);
     void createOrderFor(int clientId, int watchId);
     void applyStatus(int orderId, OrderStatus status);
     void applyMaster(int orderId, int masterId);
     void applyUsedPart(int orderId, int partId);
     void showContextMenu(Tab tab, const QPoint& pos);
-    void showDetails(Tab tab);                          // полная информация о заказе или часах
+    void showDetails(Tab tab);                          
     QString orderDetails(int orderId) const;
     QString watchDetails(int watchId) const;
 
-    // оформление окна
+
     void buildUi();
     void createMenus();
     void createShortcuts();
     void setPage(Tab tab);
     void updateAddButton();
-    void updateSummary();                               // карточки со счётчиками заказов
+    void updateSummary();                              
     bool pageVisible(Tab tab) const;
     int addPermission(Tab tab) const;
     QWidget* makeCard(const QString& tone, const QString& caption, QLabel*& valueLabel);
     QTableView* addTable(QAbstractItemModel* model, Tab tab);
-    void fitColumns(Tab tab);                           // ширина столбцов по содержимому, пока её не меняли вручную
+    void fitColumns(Tab tab);                          
 
     bool allowed(int who) const;
-    bool ownsOrder(int orderId) const;                  // мастер взял этот заказ
+    bool ownsOrder(int orderId) const;                  
     QMenu* newMenu(const QString& title);
     void addMenuAction(QMenu* menu, const QString& title, void (MainWindow::*slot)(), int who,
                        const QKeySequence& shortcut = QKeySequence());
     void attach(QMenu* menu);
-    int selectedId(Tab tab) const;                     // id выбранной строки (столбец 0)
+    int selectedId(Tab tab) const;                
     Tab currentTab() const;
-    bool pick(const QString& title, const Choices& choices, int& id);   // выбор из списка
+    bool pick(const QString& title, const Choices& choices, int& id);  
     Choices clientChoices() const;
-    Choices watchChoices(bool freeOnly = false) const;      // freeOnly - только часы без незавершённого заказа
+    Choices watchChoices(bool freeOnly = false) const;     
     Choices masterChoices() const;
     Choices partChoices() const;
-    Choices orderChoices(bool ownOnly = false) const;       // ownOnly - только заказы, взятые этим мастером
+    Choices orderChoices(bool ownOnly = false) const;       
     Choices accountChoices() const;
     void refreshTab(Tab tab);
     void refreshAll();
 
     template <typename F>
-    void guarded(F&& action);                          // выполняет действие, ошибки - в окно
+    void guarded(F&& action);                        
 
     Workshop* workshop;
     Role role;
@@ -131,7 +125,7 @@ private:
     bool darkTheme = false;
     bool autoResizing = false;
     bool userSized[6] = {false, false, false, false, false, false};
-    QString lastDate;                                  // чтобы обновлять сроки при смене даты
+    QString lastDate;                             
     QStackedWidget* pages;
     QLabel* titleLabel;
     QLineEdit* searchEdit;

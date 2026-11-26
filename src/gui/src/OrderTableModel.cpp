@@ -22,7 +22,7 @@ QString personName(const Client* c) {
     return c ? QString::fromStdString(c->getLastName() + " " + c->getFirstName()) : QString("—");
 }
 
-} // namespace
+} 
 
 OrderTableModel::OrderTableModel(OrderRepo& repo, QObject* parent)
     : RepositoryTableModel(repo, {"ID", "Клиент", "Часы", "Мастер", "Услуги", "Статус", "Принят",
@@ -31,12 +31,12 @@ OrderTableModel::OrderTableModel(OrderRepo& repo, QObject* parent)
 QVariant OrderTableModel::data(const QModelIndex& index, int role) const {
     if (!index.isValid()) return {};
     const Order& o = repo.at(static_cast<std::size_t>(index.row()));
-    bool finished = o.getStatus() >= OrderStatus::Ready;          // работа завершена
-    int left = o.daysLeft(dates::today());                        // срок меняется со временем
+    bool finished = o.getStatus() >= OrderStatus::Ready;         
+    int left = o.daysLeft(dates::today());                        
 
-    if (role == Qt::ToolTipRole) role = Qt::DisplayRole;      // полный текст ячейки по наведению мыши
+    if (role == Qt::ToolTipRole) role = Qt::DisplayRole;      
     if (role == Qt::UserRole && index.column() == 5) return statusColor(o.getStatus());
-    if (role == Qt::UserRole + 1 && index.column() == 8)      // числовой ключ сортировки
+    if (role == Qt::UserRole + 1 && index.column() == 8)     
         return finished ? 100000 : left;
     if (role == Qt::ForegroundRole && index.column() == 8 && !finished) {
         if (left < 0) return QBrush(QColor("#c0392b"));           // просрочен

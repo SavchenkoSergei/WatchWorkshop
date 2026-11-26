@@ -24,7 +24,7 @@ WatchDialog::WatchDialog(const Choices& clients, QWidget* parent, const Watch* e
     modelEdit = new QLineEdit(this);
     serialEdit = new QLineEdit(this);
     mechanismBox = new QComboBox(this);
-    for (const std::string& type : Watch::mechanismTypes())      // выбор только из списка
+    for (const std::string& type : Watch::mechanismTypes())      
         mechanismBox->addItem(QString::fromStdString(type));
     defectEdit = new QPlainTextEdit(this);
     defectEdit->setFixedHeight(70);

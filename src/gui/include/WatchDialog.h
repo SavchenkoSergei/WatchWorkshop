@@ -10,10 +10,8 @@ class QPlainTextEdit;
 
 class WatchDialog : public QDialog {
 public:
-    // clients - список возможных владельцев;
-    // preselectedClientId - владелец, выбранный заранее (например, через контекстное меню клиента)
-    WatchDialog(const Choices& clients, QWidget* parent = nullptr, const Watch* existing = nullptr,
-                int preselectedClientId = 0);
+    explicit WatchDialog(const Choices& clients, QWidget* parent = nullptr,
+        const Watch* existing = nullptr, int preselectedClientId = 0);
     Watch getWatch() const;
     void accept() override;
 

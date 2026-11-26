@@ -14,7 +14,6 @@ std::string FileStorage::path(const std::string& file) const {
     return (fs::path(dataDir) / file).string();
 }
 
-// Первая строка файла - число записей, далее каждая запись пишется своим оператором <<.
 template <typename T, typename C>
 void FileStorage::save(const Repository<T, C>& repo, const std::string& file) const {
     std::ofstream out(path(file));
@@ -27,7 +26,7 @@ void FileStorage::save(const Repository<T, C>& repo, const std::string& file) co
 template <typename T, typename C>
 void FileStorage::load(Repository<T, C>& repo, const std::string& file) const {
     std::ifstream in(path(file));
-    if (!in) return;                          // первый запуск: файла ещё нет
+    if (!in) return;                         
     std::size_t n = 0;
     if (!(in >> n)) throw FileCorruptedException(file);
     for (std::size_t i = 0; i < n; ++i) {
@@ -37,8 +36,6 @@ void FileStorage::load(Repository<T, C>& repo, const std::string& file) const {
     }
 }
 
-// Все существующие файлы данных переименовываются в *.bak: данные не теряются, а
-// автосохранение при выходе не затирает их пустым состоянием.
 void FileStorage::quarantine() const {
     std::error_code ec;
     for (const std::string& file : {clientsFile, watchesFile, mastersFile, ordersFile, partsFile, accountsFile, logFile})
@@ -68,7 +65,6 @@ void FileStorage::loadAll(Workshop& w) const {
 
     std::string current;
     try {
-        // порядок загрузки определяется зависимостями объектов
         current = clientsFile;  load(w.clients, clientsFile);
         current = mastersFile;  load(w.masters, mastersFile);
         current = partsFile;    load(w.parts, partsFile);

@@ -13,10 +13,6 @@ class QFormLayout;
 class QLabel;
 class QSpinBox;
 
-// Диалог оформления заказа. Набор услуг зависит от типа механизма выбранных часов,
-// цена работы - от класса марки. Элементы питания и другие детали мастер добавляет в заказ отдельно.
-// В режиме serviceOnly показываются только поля услуги для часов существующего заказа
-// (в списке watches передаётся одна запись).
 class OrderDialog : public QDialog {
 public:
     OrderDialog(const Choices& clients, const Choices& watches, const Choices& masters,
@@ -25,18 +21,18 @@ public:
 
     int getClientId() const;
     int getWatchId() const;
-    int getMasterId() const;                       // 0 - мастер не назначен
-    std::shared_ptr<Service> getService() const;   // услуга с введёнными параметрами
+    int getMasterId() const;                    
+    std::shared_ptr<Service> getService() const;   
     void accept() override;
 
 private:
     void validate() const;
     const Choice* currentWatch() const;
     const ServiceTemplate* currentTemplate() const;
-    void refillWatches();        // показывает только часы выбранного клиента
-    void refillServices();       // услуги, подходящие типу механизма выбранных часов
-    void updateServiceFields();  // показывает нужные поля и пересчитывает цену работы
-    void updatePreview();        // пересчитывает стоимость и срок
+    void refillWatches();       
+    void refillServices();      
+    void updateServiceFields(); 
+    void updatePreview();       
 
     Choices allWatches;
     bool serviceOnly;

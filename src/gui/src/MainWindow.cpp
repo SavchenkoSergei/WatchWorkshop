@@ -45,13 +45,13 @@
 #include "Workshop.h"
 
 namespace {
-// порядок кнопок боковой панели: заказы, клиенты, часы, мастера, детали
+
 const int kNavOrder[6] = {3, 0, 1, 2, 4, 5};
 const char* const kPageTitles[6] = {"Клиенты", "Часы", "Мастера", "Заказы", "Детали на складе", "Журнал действий"};
 const char* const kNavTitles[6] = {"Клиенты", "Часы", "Мастера", "Заказы", "Детали", "Журнал"};
 const char* const kAddTitles[6] = {"+ Клиент", "+ Часы", "+ Мастер", "+ Заказ", "+ Деталь", ""};
-const int kMaxColumnWidth = 340;       // длинный текст дальше обрезается, полный виден в подсказке
-} // namespace
+const int kMaxColumnWidth = 340;    
+}
 
 template <typename F>
 void MainWindow::guarded(F&& action) {
@@ -88,7 +88,7 @@ MainWindow::MainWindow(Workshop* workshop, Role role, int accountId, const QStri
         statusBar()->showMessage("Данные сохраняются в папку: " + QDir::toNativeSeparators(path));
     }
 
-    // сроки зависят от текущей даты: при её смене таблица заказов обновляется сама
+   
     lastDate = QString::fromStdString(dates::today());
     timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, [this] {
@@ -101,7 +101,7 @@ MainWindow::MainWindow(Workshop* workshop, Role role, int accountId, const QStri
     timer->start(60 * 1000);
 }
 
-// ---------- оформление окна ----------
+
 
 void MainWindow::buildUi() {
     auto* central = new QWidget(this);
@@ -109,7 +109,7 @@ void MainWindow::buildUi() {
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
 
-    // боковая панель
+
     auto* sidebar = new QFrame(central);
     sidebar->setObjectName("sidebar");
     sidebar->setFixedWidth(210);
@@ -139,7 +139,6 @@ void MainWindow::buildUi() {
     userLabel->setObjectName("userLabel");
     sideLayout->addWidget(userLabel);
 
-    // рабочая область
     auto* content = new QWidget(central);
     auto* contentLayout = new QVBoxLayout(content);
     contentLayout->setContentsMargins(22, 18, 22, 14);
@@ -183,7 +182,7 @@ void MainWindow::buildUi() {
     tables[OrdersTab] = addTable(orderModel, OrdersTab);
     tables[PartsTab] = addTable(partModel, PartsTab);
     tables[LogTab] = addTable(logModel, LogTab);
-    proxies[LogTab]->toggleColumn(0);                 // журнал: сначала новые записи
+    proxies[LogTab]->toggleColumn(0);                
 
     root->addWidget(sidebar);
     root->addWidget(content, 1);
@@ -216,7 +215,7 @@ QWidget* MainWindow::makeCard(const QString& tone, const QString& caption, QLabe
 }
 
 QTableView* MainWindow::addTable(QAbstractItemModel* model, Tab tab) {
-    auto* proxy = new SortProxy(this);          // поиск по любому столбцу и сортировка по щелчку на заголовок
+    auto* proxy = new SortProxy(this);         
     proxy->setSource(model);
     proxies[tab] = proxy;
 
@@ -232,28 +231,27 @@ QTableView* MainWindow::addTable(QAbstractItemModel* model, Tab tab) {
     view->verticalHeader()->setDefaultSectionSize(40);
 
     QHeaderView* header = view->horizontalHeader();
-    header->setSectionResizeMode(QHeaderView::Interactive);     // ширину столбцов можно менять мышью
+    header->setSectionResizeMode(QHeaderView::Interactive);    
     header->setMinimumSectionSize(60);
     header->setStretchLastSection(true);
     header->setSectionsClickable(true);
     connect(header, &QHeaderView::sectionClicked, this,
             [this, tab](int column) { proxies[tab]->toggleColumn(column); });
     connect(header, &QHeaderView::sectionResized, this, [this, tab] {
-        if (!autoResizing) userSized[tab] = true;               // пользователь сам задал ширину
+        if (!autoResizing) userSized[tab] = true;              
     });
 
-    view->setContextMenuPolicy(Qt::CustomContextMenu);          // меню по правой кнопке мыши
+    view->setContextMenuPolicy(Qt::CustomContextMenu);        
     connect(view, &QWidget::customContextMenuRequested, this,
             [this, tab](const QPoint& pos) { showContextMenu(tab, pos); });
     connect(view, &QTableView::doubleClicked, this, [this, tab](const QModelIndex&) {
         if (tab == OrdersTab || tab == WatchesTab) showDetails(tab);
     });
     if (tab == OrdersTab) view->setItemDelegateForColumn(5, new StatusDelegate(view));
-    pages->addWidget(view);               // индекс страницы совпадает с номером раздела
+    pages->addWidget(view);             
     return view;
 }
 
-// Ширина столбцов подгоняется под содержимое, пока пользователь не изменил её вручную.
 void MainWindow::fitColumns(Tab tab) {
     if (userSized[tab]) return;
     autoResizing = true;
@@ -277,19 +275,18 @@ void MainWindow::updateAddButton() {
     Tab tab = currentTab();
     addButton->setText(kAddTitles[tab]);
     addButton->setVisible(allowed(addPermission(tab)));
-    takeButton->setVisible(tab == OrdersTab && role == Role::Master);   // мастер берёт заказы сам
+    takeButton->setVisible(tab == OrdersTab && role == Role::Master);   
 }
 
-// Клиентов, часы, заказы и детали добавляет ресепшен (и администратор); мастеров - администратор.
+
 int MainWindow::addPermission(Tab tab) const {
-    if (tab == LogTab) return 0;                       // в журнал записи добавляются сами
+    if (tab == LogTab) return 0;                       
     return tab == MastersTab ? AdminOnly : FrontDesk;
 }
 
-// Какие разделы видит роль: гость и мастер - заказы, часы и детали;
-// ресепшен и администратор - все.
+
 bool MainWindow::pageVisible(Tab tab) const {
-    if (tab == LogTab) return role == Role::Admin;     // журнал действий видит только администратор
+    if (tab == LogTab) return role == Role::Admin;     
     if (role == Role::Reception || role == Role::Admin) return true;
     return tab == OrdersTab || tab == WatchesTab || tab == PartsTab;
 }
@@ -311,8 +308,6 @@ void MainWindow::updateSummary() {
 
 MainWindow::Tab MainWindow::currentTab() const { return static_cast<Tab>(pages->currentIndex()); }
 
-// ---------- меню, горячие клавиши и права ----------
-
 bool MainWindow::allowed(int who) const {
     int bit = 0;
     switch (role) {
@@ -324,7 +319,6 @@ bool MainWindow::allowed(int who) const {
     return (who & bit) != 0;
 }
 
-// Мастер меняет заказ только если взял его сам.
 bool MainWindow::ownsOrder(int orderId) const {
     if (role != Role::Master) return false;
     const Master* m = workshop->orders.findById(orderId).getMaster();
@@ -334,7 +328,7 @@ bool MainWindow::ownsOrder(int orderId) const {
 QMenu* MainWindow::newMenu(const QString& title) { return new QMenu(title, this); }
 
 void MainWindow::attach(QMenu* menu) {
-    if (menu->isEmpty()) delete menu;           // у роли нет ни одного действия в этом меню
+    if (menu->isEmpty()) delete menu;           
     else menuBar()->addMenu(menu);
 }
 
@@ -346,13 +340,11 @@ void MainWindow::addMenuAction(QMenu* menu, const QString& title, void (MainWind
     connect(action, &QAction::triggered, this, slot);
 }
 
-// В верхней панели остались только общие действия: все операции с данными выполняются
-// внутри самих разделов (кнопка «+», двойной щелчок, правая кнопка мыши).
 void MainWindow::createMenus() {
     QMenu* file = newMenu("Файл");
     if (allowed(Staff)) {
         QAction* save = file->addAction("Сохранить");
-        save->setShortcut(QKeySequence::Save);                       // Ctrl+S
+        save->setShortcut(QKeySequence::Save);                    
         connect(save, &QAction::triggered, this, [this] {
             guarded([this] {
                 workshop->saveAll();
@@ -377,8 +369,6 @@ void MainWindow::createMenus() {
     attach(staff);
 }
 
-// Горячие клавиши без пунктов меню. Все они действуют только в текущем разделе
-// и проверяют права так же, как кнопки и контекстные меню.
 void MainWindow::createShortcuts() {
     auto bind = [this](const QKeySequence& keys, std::function<void()> action) {
         auto* a = new QAction(this);
@@ -386,16 +376,16 @@ void MainWindow::createShortcuts() {
         connect(a, &QAction::triggered, this, [action] { action(); });
         QWidget::addAction(a);
     };
-    bind(QKeySequence::New, [this] { onAddCurrent(); });                        // Ctrl+N
+    bind(QKeySequence::New, [this] { onAddCurrent(); });                     
     bind(QKeySequence(Qt::Key_F2), [this] { onEdit(); });
     bind(QKeySequence::Delete, [this] { onDelete(); });
     bind(QKeySequence("Ctrl+T"), [this] { if (currentTab() == OrdersTab) onChangeStatus(); });
-    bind(QKeySequence::Find, [this] {                                           // Ctrl+F
+    bind(QKeySequence::Find, [this] {                                          
         searchEdit->setFocus();
         searchEdit->selectAll();
     });
     bind(QKeySequence(Qt::Key_F5), [this] { refreshAll(); });
-    for (int i = 0; i < 6; ++i) {                                               // Ctrl+1 ... Ctrl+6
+    for (int i = 0; i < 6; ++i) {                                              
         Tab tab = static_cast<Tab>(kNavOrder[i]);
         bind(QKeySequence(QString("Ctrl+%1").arg(i + 1)), [this, tab] {
             if (!navButtons[tab]->isVisible()) return;
@@ -407,7 +397,7 @@ void MainWindow::createShortcuts() {
 
 void MainWindow::closeEvent(QCloseEvent* event) {
     if (role != Role::Guest)
-        guarded([this] { workshop->saveAll(); });     // автосохранение при выходе
+        guarded([this] { workshop->saveAll(); });     
     event->accept();
 }
 
@@ -431,9 +421,6 @@ void MainWindow::refreshAll() {
     for (int i = 0; i < 6; ++i) refreshTab(static_cast<Tab>(i));
 }
 
-// ---------- вспомогательные функции ----------
-
-// id выбранной строки: идентификатор всегда лежит в столбце 0.
 int MainWindow::selectedId(Tab tab) const {
     QModelIndex index = tables[tab]->currentIndex();
     if (!index.isValid()) throw InvalidInputException("не выбрана строка в таблице");
@@ -508,12 +495,12 @@ Choices MainWindow::accountChoices() const {
     return r;
 }
 
-// ---------- подробная информация ----------
+
 
 QString MainWindow::watchDetails(int watchId) const {
     const Watch& w = workshop->watches.findById(watchId);
     QString html = "<h3>Часы: " + QString::fromStdString(w.getBrand() + " " + w.getModel()).toHtmlEscaped() + "</h3><p>";
-    if (role != Role::Guest && w.getClient())                    // гость не видит персональные данные
+    if (role != Role::Guest && w.getClient())                   
         html += "<b>Владелец:</b> " +
                 QString::fromStdString(w.getClient()->getLastName() + " " + w.getClient()->getFirstName()).toHtmlEscaped() +
                 "<br>";
@@ -564,9 +551,6 @@ void MainWindow::showDetails(Tab tab) {
     });
 }
 
-// ---------- действия, общие для меню и контекстных меню ----------
-
-// Принять часы; владелец (если известен) выбирается в диалоге заранее.
 void MainWindow::addWatchFor(int clientId) {
     guarded([this, clientId] {
         WatchDialog dlg(clientChoices(), this, nullptr, clientId);
@@ -576,7 +560,6 @@ void MainWindow::addWatchFor(int clientId) {
     });
 }
 
-// Создать заказ; клиент и часы (если известны) выбираются в диалоге заранее.
 void MainWindow::createOrderFor(int clientId, int watchId) {
     guarded([this, clientId, watchId] {
         if (watchId != 0)
@@ -608,22 +591,19 @@ void MainWindow::applyMaster(int orderId, int newMasterId) {
 
 void MainWindow::applyUsedPart(int orderId, int partId) {
     guarded([&] {
-        workshop->addUsedPart(orderId, partId);     // деталь сразу списывается со склада
+        workshop->addUsedPart(orderId, partId);    
         refreshTab(OrdersTab);
         refreshTab(PartsTab);
     });
 }
 
-// ---------- контекстное меню (правая кнопка мыши) ----------
 
-// Меню зависит от раздела, от того, нажата ли строка, от столбца, от состояния заказа и от роли.
-// У готового заказа остаётся только смена статуса, у выданного - ничего, кроме «Создать заказ».
 void MainWindow::showContextMenu(Tab tab, const QPoint& pos) {
     if (role == Role::Guest) return;
     QTableView* view = tables[tab];
     QModelIndex idx = view->indexAt(pos);
     bool hasRow = idx.isValid();
-    if (hasRow) {                                    // правая кнопка выбирает строку, по которой нажали
+    if (hasRow) {                                   
         view->selectRow(idx.row());
         view->setCurrentIndex(idx);
     }
@@ -666,7 +646,7 @@ void MainWindow::showContextMenu(Tab tab, const QPoint& pos) {
         case MastersTab:
             add("Добавить мастера", AdminOnly, [this] { onAddMaster(); });
             if (hasRow) {
-                if (allowed(FrontDesk)) {            // «Назначить на заказ» выбранного мастера
+                if (allowed(FrontDesk)) {          
                     QMenu* sub = menu.addMenu("Назначить на заказ");
                     Choices orders = orderChoices();
                     if (orders.isEmpty()) sub->addAction("Свободных заказов нет")->setEnabled(false);
@@ -688,7 +668,7 @@ void MainWindow::showContextMenu(Tab tab, const QPoint& pos) {
             if (hasRow) {
                 add("Принять партию (пополнить остаток)…", FrontDesk, [this] { onRestockPart(); });
                 add("Списать…", WorkshopStaff, [this] { onWriteOffPart(); });
-                if (allowed(WorkshopStaff)) {        // «Добавить в заказ» выбранную деталь
+                if (allowed(WorkshopStaff)) {       
                     QMenu* sub = menu.addMenu("Добавить в заказ");
                     Choices orders = orderChoices(role == Role::Master);
                     if (orders.isEmpty()) sub->addAction("Свободных заказов нет")->setEnabled(false);
@@ -706,7 +686,7 @@ void MainWindow::showContextMenu(Tab tab, const QPoint& pos) {
             break;
 
         case LogTab:
-            break;                                   // у журнала меню нет
+            break;                                  
 
         case OrdersTab: {
             const Order* order = hasRow ? &workshop->orders.findById(id) : nullptr;
@@ -718,8 +698,7 @@ void MainWindow::showContextMenu(Tab tab, const QPoint& pos) {
             auto statusMenu = [&] {
                 if (statusDone || !hasRow || !allowed(Staff)) return;
                 OrderStatus current = order->getStatus();
-                // в меню только те статусы, которые эта роль может поставить этому заказу
-                // (мастер - только в своём заказе); если таких нет, пункта «Сменить статус» нет вообще
+              
                 QList<OrderStatus> options;
                 for (int s = 0; s <= static_cast<int>(OrderStatus::Issued); ++s) {
                     OrderStatus status = static_cast<OrderStatus>(s);
@@ -758,13 +737,13 @@ void MainWindow::showContextMenu(Tab tab, const QPoint& pos) {
             auto serviceMenu = [&] {
                 if (serviceDone || !hasRow) return;
                 serviceDone = true;
-                if (role != Role::Master || owns)             // мастер добавляет услуги только в свой заказ
+                if (role != Role::Master || owns)            
                     add("Добавить услугу…", Staff, [this] { onAddService(); });
                 add("Удалить услугу…", FrontDesk, [this] { onRemoveService(); });
             };
             auto partMenu = [&] {
                 if (partDone || !hasRow || !allowed(WorkshopStaff)) return;
-                if (role == Role::Master && !owns) return;      // чужой заказ: детали менять нельзя
+                if (role == Role::Master && !owns) return;      
                 partDone = true;
                 QMenu* sub = menu.addMenu("Добавить деталь в заказ");
                 Choices parts = partChoices();
@@ -782,7 +761,6 @@ void MainWindow::showContextMenu(Tab tab, const QPoint& pos) {
                 add("Подробнее (неисправность, услуги)", Staff, [this] { showDetails(OrdersTab); });
                 separator();
                 if (!finished) {
-                    // мастер может взять свободный заказ; сложные назначает ресепшен
                     if (role == Role::Master && !order->getMaster()) {
                         QAction* take = menu.addAction(order->isComplex()
                             ? "Взять заказ (сложный: назначает ресепшен)" : "Взять заказ");
@@ -790,7 +768,6 @@ void MainWindow::showContextMenu(Tab tab, const QPoint& pos) {
                         connect(take, &QAction::triggered, this, [this] { onTakeOrder(); });
                         separator();
                     }
-                    // сначала то, что относится к столбцу, на котором нажата правая кнопка
                     if (column == 5) statusMenu();
                     else if (column == 3) masterMenu();
                     else if (column == 4) serviceMenu();
@@ -800,7 +777,7 @@ void MainWindow::showContextMenu(Tab tab, const QPoint& pos) {
                     serviceMenu();
                     partMenu();
                 } else if (!issued || role == Role::Admin) {
-                    statusMenu();                    // готовый заказ: только смена статуса (например, выдача)
+                    statusMenu();                  
                 }
                 separator();
             }
@@ -813,7 +790,6 @@ void MainWindow::showContextMenu(Tab tab, const QPoint& pos) {
     menu.exec(view->viewport()->mapToGlobal(pos));
 }
 
-// ---------- добавление, редактирование, удаление ----------
 
 void MainWindow::onAddClient() {
     guarded([this] {
@@ -847,7 +823,6 @@ void MainWindow::onAddPart() {
     });
 }
 
-// Ctrl+N и кнопка «+»: добавление в текущем разделе.
 void MainWindow::onAddCurrent() {
     Tab tab = currentTab();
     if (!allowed(addPermission(tab))) return;
@@ -860,8 +835,6 @@ void MainWindow::onAddCurrent() {
     }
 }
 
-// Редактирование строки текущего раздела: тот же диалог, заполненный выбранным объектом.
-// Клиентов и часы редактирует ресепшен, мастеров и детали - администратор.
 void MainWindow::onEdit() {
     Tab tab = currentTab();
     if (!allowed((tab == MastersTab || tab == PartsTab) ? AdminOnly : FrontDesk)) return;
@@ -900,12 +873,10 @@ void MainWindow::onEdit() {
                     "Заказ не редактируется: используйте правую кнопку мыши по заказу.");
                 return;
         }
-        refreshAll();      // изменения видны и в связанных таблицах (например, имя клиента в заказах)
+        refreshAll();     
     });
 }
 
-// Удаление выбранной записи (только администратор). Запись, на которую ссылаются
-// другие объекты, удалить нельзя: Workshop генерирует ObjectInUseException.
 void MainWindow::onDelete() {
     if (!allowed(AdminOnly)) return;
     guarded([this] {
@@ -920,15 +891,13 @@ void MainWindow::onDelete() {
             case OrdersTab:  workshop->removeOrder(id); break;
             case PartsTab:   workshop->removePart(id); break;
         }
-        refreshAll();      // у отменённого заказа детали вернулись на склад
+        refreshAll();      
     });
 }
 
-// ---------- заказы ----------
 
 void MainWindow::onCreateOrder() { createOrderFor(0, 0); }
 
-// Мастер берёт свободный лёгкий заказ сам; сложные назначает ресепшен.
 void MainWindow::onTakeOrder() {
     guarded([this] {
         int orderId = selectedId(OrdersTab);
@@ -989,7 +958,7 @@ void MainWindow::onAddUsedPart() {
 void MainWindow::onRemoveUsedPart() {
     guarded([this] {
         int orderId = selectedId(OrdersTab);
-        Choices used;                                        // уникальные детали заказа
+        Choices used;                                        
         for (const Part* p : workshop->orders.findById(orderId).getUsedParts()) {
             bool known = std::any_of(used.begin(), used.end(),
                                      [p](const Choice& c) { return c.id == p->getId(); });
@@ -997,13 +966,12 @@ void MainWindow::onRemoveUsedPart() {
         }
         int partId = 0;
         if (!pick("Убрать деталь из заказа", used, partId)) return;
-        workshop->removeUsedPart(orderId, partId);           // деталь вернулась на склад
+        workshop->removeUsedPart(orderId, partId);          
         refreshTab(OrdersTab);
         refreshTab(PartsTab);
     });
 }
 
-// В списке только те статусы, которые разрешены роли для этого заказа.
 void MainWindow::onChangeStatus() {
     if (!allowed(Staff)) return;
     guarded([this] {
@@ -1028,7 +996,6 @@ void MainWindow::onChangeStatus() {
     });
 }
 
-// ---------- склад ----------
 
 void MainWindow::onRestockPart() {
     guarded([this] {
@@ -1052,7 +1019,6 @@ void MainWindow::onWriteOffPart() {
     });
 }
 
-// ---------- учётные записи ----------
 
 void MainWindow::onCreateAccount() {
     guarded([this] {
@@ -1101,14 +1067,12 @@ void MainWindow::onSwitchUser() {
     close();
 }
 
-// Светлая и тёмная темы; выбор запоминается между запусками.
 void MainWindow::onToggleTheme() {
     darkTheme = !darkTheme;
     applyTheme(darkTheme);
     QSettings("WatchWorkshop", "WatchWorkshop").setValue("darkTheme", darkTheme);
 }
 
-// Данные (включая учётные записи с хешами паролей) лежат в папке data рядом с программой.
 void MainWindow::onOpenDataFolder() {
     QString path = QString::fromStdString(workshop->getDataDir());
     QDir().mkpath(path);

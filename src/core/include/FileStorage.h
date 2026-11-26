@@ -5,7 +5,6 @@
 
 class Workshop;
 
-// Сохранение и загрузка состояния мастерской в текстовые файлы.
 class FileStorage {
 public:
     explicit FileStorage(std::string dataDir = "data");
@@ -13,8 +12,7 @@ public:
     const std::string& getDataDir() const { return dataDir; }
 
     void saveAll(const Workshop& w) const;
-    // Загружает данные. При повреждении переименовывает файлы данных в *.bak,
-    // очищает все репозитории и генерирует FileCorruptedException.
+
     void loadAll(Workshop& w) const;
 
 private:

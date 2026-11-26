@@ -20,7 +20,7 @@ OrderDialog::OrderDialog(const Choices& clients, const Choices& watches, const C
 
     serviceBox = new QComboBox(this);
     brandLabel = new QLabel(this);
-    priceLabel = new QLabel(this);                            // цена работы из каталога услуг
+    priceLabel = new QLabel(this);                          
     complexitySpin = new QSpinBox(this);
     complexitySpin->setRange(1, 5);
     disassemblySpin = new QSpinBox(this);
@@ -65,7 +65,6 @@ OrderDialog::OrderDialog(const Choices& clients, const Choices& watches, const C
                 [this] { refillWatches(); });
         connect(watchBox, qOverload<int>(&QComboBox::currentIndexChanged), this,
                 [this] { refillServices(); });
-        // клиент и часы, выбранные заранее (например, через контекстное меню)
         if (preselectedClientId != 0) {
             int index = clientBox->findData(preselectedClientId);
             if (index >= 0) clientBox->setCurrentIndex(index);
@@ -103,7 +102,6 @@ void OrderDialog::refillWatches() {
     refillServices();
 }
 
-// Набор услуг зависит от типа механизма часов (кварцевый, механический, хронограф).
 void OrderDialog::refillServices() {
     serviceBox->blockSignals(true);
     serviceBox->clear();
@@ -116,7 +114,6 @@ void OrderDialog::refillServices() {
     updateServiceFields();
 }
 
-// Показывает только нужное услуге поле и пересчитывает цену работы с учётом класса марки.
 void OrderDialog::updateServiceFields() {
     const ServiceTemplate* t = currentTemplate();
     ServiceExtra extra = t ? t->extra : ServiceExtra::None;
@@ -158,7 +155,7 @@ void OrderDialog::validate() const {
 void OrderDialog::accept() {
     try {
         validate();
-        getService();            // создание услуги проверяет параметры (может выбросить исключение)
+        getService();           
         QDialog::accept();
     } catch (const InvalidInputException& e) {
         QMessageBox::warning(this, "Ошибка ввода", QString::fromUtf8(e.what()));

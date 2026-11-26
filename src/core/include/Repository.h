@@ -1,6 +1,5 @@
 #pragma once
-// Шаблонный репозиторий: хранит коллекцию однотипных объектов в контейнере STL.
-// Требования к T: метод getId(), копирование/присваивание.
+
 #include <algorithm>
 #include <cstddef>
 #include <iterator>
@@ -48,7 +47,6 @@ public:
     template <typename Pred>
     const_iterator findIf(Pred pred) const { return std::find_if(items.begin(), items.end(), pred); }
 
-    // Сортировка собственным алгоритмом (см. Algorithms.h).
     template <typename Cmp>
     void sortBy(Cmp cmp) { algo::mergeSort(items, cmp); }
 
@@ -61,8 +59,6 @@ public:
 
     const Container& getAll() const { return items; }
 
-    // Заменяет содержимое объекта на месте: адрес объекта не меняется,
-    // поэтому указатели на него остаются действительными.
     void update(int id, const T& item) { findById(id) = item; }
 
     T& at(std::size_t index) {
@@ -74,7 +70,6 @@ public:
         return *std::next(items.begin(), static_cast<std::ptrdiff_t>(index));
     }
 
-    // Идентификатор для новой записи: максимальный существующий + 1.
     int nextId() const {
         int maxId = 0;
         for (const T& x : items) maxId = std::max(maxId, x.getId());

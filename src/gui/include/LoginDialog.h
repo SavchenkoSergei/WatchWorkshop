@@ -3,7 +3,6 @@
 
 class QLineEdit;
 
-// Окно входа: логин и пароль сотрудника либо режим гостя (только просмотр).
 class LoginDialog : public QDialog {
 public:
     explicit LoginDialog(QWidget* parent = nullptr);

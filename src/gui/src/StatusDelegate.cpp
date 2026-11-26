@@ -10,7 +10,6 @@ StatusDelegate::StatusDelegate(QObject* parent) : QStyledItemDelegate(parent) {}
 
 void StatusDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
                            const QModelIndex& index) const {
-    // фон строки (выделение, чередование цветов) рисует стандартный делегат без текста
     QStyleOptionViewItem opt = option;
     initStyleOption(&opt, index);
     QString text = opt.text;

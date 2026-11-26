@@ -3,7 +3,6 @@
 #include <iosfwd>
 #include <string>
 
-// Складская позиция (деталь).
 class Part {
 public:
     Part() = default;
@@ -16,8 +15,8 @@ public:
     int getQuantity() const { return quantity; }
     double getPrice() const { return price; }
 
-    void addStock(int qty);    // Q' = Q + q
-    void writeOff(int qty);    // Q' = Q - q, при q <= Q
+    void addStock(int qty);   
+    void writeOff(int qty);   
 
     bool operator==(const Part& other) const;
     std::strong_ordering operator<=>(const Part& other) const;

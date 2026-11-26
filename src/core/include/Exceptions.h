@@ -1,16 +1,13 @@
 #pragma once
-// Иерархия исключений системы. Все классы наследуются от WorkshopException,
-// поэтому в интерфейсе их можно перехватывать одним блоком catch.
+
 #include <stdexcept>
 #include <string>
 
-// Базовое исключение: сообщение и what() наследуются от std::runtime_error.
 class WorkshopException : public std::runtime_error {
 public:
     using std::runtime_error::runtime_error;
 };
 
-// Некорректное значение поля (пустая строка, число вне диапазона и т. п.).
 class InvalidInputException : public WorkshopException {
 public:
     explicit InvalidInputException(const std::string& fieldName)
@@ -20,7 +17,6 @@ private:
     std::string fieldName;
 };
 
-// Объект с таким идентификатором не найден.
 class ObjectNotFoundException : public WorkshopException {
 public:
     explicit ObjectNotFoundException(int objectId)
@@ -31,7 +27,6 @@ private:
     int objectId;
 };
 
-// Действие запрещено для роли пользователя.
 class AccessDeniedException : public WorkshopException {
 public:
     explicit AccessDeniedException(const std::string& action)
@@ -41,7 +36,6 @@ private:
     std::string action;
 };
 
-// Объект нельзя удалить: на него ссылаются другие объекты.
 class ObjectInUseException : public WorkshopException {
 public:
     explicit ObjectInUseException(const std::string& reason)
@@ -51,7 +45,6 @@ private:
     std::string reason;
 };
 
-// Деталей на складе недостаточно.
 class OutOfStockException : public WorkshopException {
 public:
     explicit OutOfStockException(const std::string& partName)
@@ -61,7 +54,6 @@ private:
     std::string partName;
 };
 
-// Файл данных повреждён или недоступен.
 class FileCorruptedException : public WorkshopException {
 public:
     explicit FileCorruptedException(const std::string& fileName)

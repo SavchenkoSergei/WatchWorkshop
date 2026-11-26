@@ -1,5 +1,5 @@
 #pragma once
-// Светлая и тёмная темы оформления (QSS). Цвета подставляются в общий шаблон.
+
 #include <QApplication>
 #include <QString>
 
