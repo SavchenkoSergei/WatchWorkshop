@@ -8,7 +8,7 @@ QVariant WatchTableModel::data(const QModelIndex& index, int role) const {
     if (!index.isValid()) return {};
     if (role == Qt::ToolTipRole) role = Qt::DisplayRole;      
     if (role != Qt::DisplayRole) return {};
-    const Watch& w = repo.at(static_cast<std::size_t>(index.row()));
+    const Watch& w = itemAt(static_cast<std::size_t>(index.row()));
     switch (index.column()) {
         case 0: return w.getId();
         case 1: return w.getClient()

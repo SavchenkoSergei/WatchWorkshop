@@ -7,7 +7,7 @@ QVariant ClientTableModel::data(const QModelIndex& index, int role) const {
     if (!index.isValid()) return {};
     if (role == Qt::ToolTipRole) role = Qt::DisplayRole;     
     if (role != Qt::DisplayRole) return {};
-    const Client& c = repo.at(static_cast<std::size_t>(index.row()));
+    const Client& c = itemAt(static_cast<std::size_t>(index.row()));
     switch (index.column()) {
         case 0: return c.getId();
         case 1: return QString::fromStdString(c.getLastName());

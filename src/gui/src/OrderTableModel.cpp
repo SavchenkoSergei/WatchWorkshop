@@ -30,7 +30,7 @@ OrderTableModel::OrderTableModel(OrderRepo& repo, QObject* parent)
 
 QVariant OrderTableModel::data(const QModelIndex& index, int role) const {
     if (!index.isValid()) return {};
-    const Order& o = repo.at(static_cast<std::size_t>(index.row()));
+    const Order& o = itemAt(static_cast<std::size_t>(index.row()));
     bool finished = o.getStatus() >= OrderStatus::Ready;         
     int left = o.daysLeft(dates::today());                        
 

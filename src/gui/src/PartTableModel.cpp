@@ -7,7 +7,7 @@ QVariant PartTableModel::data(const QModelIndex& index, int role) const {
     if (!index.isValid()) return {};
     if (role == Qt::ToolTipRole) role = Qt::DisplayRole;    
     if (role != Qt::DisplayRole) return {};
-    const Part& p = repo.at(static_cast<std::size_t>(index.row()));
+    const Part& p = itemAt(static_cast<std::size_t>(index.row()));
     switch (index.column()) {
         case 0: return p.getId();
         case 1: return QString::fromStdString(p.getName());
